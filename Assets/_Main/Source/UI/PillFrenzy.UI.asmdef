@@ -1,0 +1,23 @@
+{
+    "name": "PillFrenzy.UI",
+    "rootNamespace": "PillFrenzy.UI",
+    "references": [
+        "PillFrenzy.Core",
+        "PillFrenzy.Gameplay",
+        "UniTask",
+        "Unity.Addressables",
+        "Unity.ResourceManager",
+        "Unity.InputSystem",
+        "Unity.TextMeshPro",
+        "UnityEngine.UI"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

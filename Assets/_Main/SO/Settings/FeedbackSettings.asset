@@ -1,0 +1,56 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: fc0c4e65d23d54e70924855b38329aca, type: 3}
+  m_Name: FeedbackSettings
+  m_EditorClassIdentifier: PillFrenzy.Gameplay::PillFrenzy.Gameplay.FeedbackSettingsSO
+  m_ShakeVibrato: 14
+  m_ShakeRandomness: 90
+  m_Correct:
+    m_ShakeDuration: 0.16
+    m_ShakeStrength: 0.08
+    m_HasBurst: 1
+    m_BurstStartScale: 0.18
+    m_BurstEndScale: 0.65
+    m_BurstGrowDuration: 0.28
+    m_BurstLifetimeSeconds: 0.32
+  m_Gold:
+    m_ShakeDuration: 0.18
+    m_ShakeStrength: 0.1
+    m_HasBurst: 1
+    m_BurstStartScale: 0.18
+    m_BurstEndScale: 0.65
+    m_BurstGrowDuration: 0.28
+    m_BurstLifetimeSeconds: 0.32
+  m_Poison:
+    m_ShakeDuration: 0.28
+    m_ShakeStrength: 0.22
+    m_HasBurst: 1
+    m_BurstStartScale: 0.18
+    m_BurstEndScale: 0.65
+    m_BurstGrowDuration: 0.28
+    m_BurstLifetimeSeconds: 0.32
+  m_Complete:
+    m_ShakeDuration: 0.32
+    m_ShakeStrength: 0.14
+    m_HasBurst: 0
+    m_BurstStartScale: 0.18
+    m_BurstEndScale: 0.65
+    m_BurstGrowDuration: 0.28
+    m_BurstLifetimeSeconds: 0.32
+  m_Fail:
+    m_ShakeDuration: 0.36
+    m_ShakeStrength: 0.18
+    m_HasBurst: 0
+    m_BurstStartScale: 0.18
+    m_BurstEndScale: 0.65
+    m_BurstGrowDuration: 0.28
+    m_BurstLifetimeSeconds: 0.32

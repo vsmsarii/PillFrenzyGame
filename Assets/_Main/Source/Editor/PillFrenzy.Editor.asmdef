@@ -1,0 +1,25 @@
+{
+    "name": "PillFrenzy.Editor",
+    "rootNamespace": "PillFrenzy.Editor",
+    "references": [
+        "PillFrenzy.Core",
+        "PillFrenzy.Gameplay",
+        "PillFrenzy.UI",
+        "Unity.Addressables",
+        "Unity.Addressables.Editor",
+        "Unity.ResourceManager",
+        "Unity.TextMeshPro",
+        "UnityEngine.UI"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

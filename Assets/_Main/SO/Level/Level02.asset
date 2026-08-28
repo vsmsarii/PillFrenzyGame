@@ -1,0 +1,40 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7b2d4f6081935cae9f1b2d3e4a5c6b78, type: 3}
+  m_Name: Level02
+  m_EditorClassIdentifier: 
+  m_StartingHealth: 3
+  m_ScorePerCorrect: 10
+  m_SpawnInterval: 0.5
+  m_MinSpawnInterval: 0.25
+  m_ConveyorSpeed: 2.8
+  m_MaxConveyorSpeed: 6
+  m_SpeedRamp: 0.18
+  m_MaxActive: 7
+  m_CapsuleDefinitions:
+  - {fileID: 11400000, guid: 21c4e8a07b3d4f159e6a8c2d4b0f1735, type: 2}
+  - {fileID: 11400000, guid: 32d5f9b18c4e5026af7b9d3e5c102846, type: 2}
+  m_GoldChance: 0.12
+  m_GoldDefinition: {fileID: 11400000, guid: 54f7a1b20c6e7248b19cae5f7d324068, type: 2}
+  m_PoisonChance: 0.12
+  m_PoisonDefinition: {fileID: 11400000, guid: 65a8b2c31d7f8359c20dbf6e8e435179, type: 2}
+  m_TargetQuotas:
+  - m_Color: 0
+    m_Amount: 6
+  - m_Color: 1
+    m_Amount: 4
+  m_ReturnToMenu: 0
+  m_Layout:
+    m_AssetGUID: 6097bfc13de59768a5f6781920212223
+    m_SubObjectName: 
+    m_SubObjectType: 
+    m_EditorAssetChanged: 0

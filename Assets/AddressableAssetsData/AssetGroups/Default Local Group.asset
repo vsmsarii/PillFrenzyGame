@@ -1,0 +1,283 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: bbb281ee3bf0b054c82ac2347e9e782c, type: 3}
+  m_Name: Default Local Group
+  m_EditorClassIdentifier: Unity.Addressables.Editor::UnityEditor.AddressableAssets.Settings.AddressableAssetGroup
+  m_GroupName: Default Local Group
+  m_GUID: 3d9bb968dc0c840579e5b59ec8047ef6
+  m_SerializeEntries:
+  - m_GUID: 0f28105bd18a90abf44663f14c87329f
+    m_Address: def.level.3
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 0fc95af5ccb276e3658fe6c3f03fa571
+    m_Address: def.level.4
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 18e6764decbd444fc9c2f85b8a3ca5cf
+    m_Address: ui.win
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 1a9ffd4674b17e5babc54b9d76a38f1d
+    m_Address: def.level.15
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 21c4e8a07b3d4f159e6a8c2d4b0f1735
+    m_Address: def.capsule.normal.red
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 2406f749e98631d2fa3397f8e459f7ea
+    m_Address: def.level.11
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 2c537b8d9fa1532461b2341516171819
+    m_Address: vfx.pop
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 31249684dfe33e13d3768e174a032537
+    m_Address: def.level.6
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 32d5f9b18c4e5026af7b9d3e5c102846
+    m_Address: def.capsule.normal.blue
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 356f24699a8a2489fb97e074eef236fb
+    m_Address: def.feedback.settings
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 3d648c9e0ab2643572c3451617181920
+    m_Address: vfx.gold
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 43e60ac29d5f6137b08cae4f6d213957
+    m_Address: def.level.1
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 493f5bbe1279a6aba81e26df6eefbe98
+    m_Address: def.level.5
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 4c155f17291c0fa1f7b54be4ecdbdd2e
+    m_Address: def.level.9
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 4e759daf1bc3754683d4561718192021
+    m_Address: vfx.poison
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 538885df9d74245acb1bf24b96505108
+    m_Address: prefab.target.8
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 5450629ab517e023628917e70457ebb9
+    m_Address: def.level.14
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 54f7a1b20c6e7248b19cae5f7d324068
+    m_Address: def.capsule.gold
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 5e771105000000000000000000000001
+    m_Address: ui.settings
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 5f86aeb02cd4865794e5671819202122
+    m_Address: def.level.2
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 6097bfc13de59768a5f6781920212223
+    m_Address: layout.level.2
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 65a8b2c31d7f8359c20dbf6e8e435179
+    m_Address: def.capsule.poison
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 71a8c0d2e4f64789b0c1d2e3f4a5b6c7
+    m_Address: sfx.correct
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 7c8f65a4bd0abb9cca2b545943b43a71
+    m_Address: def.level.10
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 7e8f90123456789abcdef0123456789a
+    m_Address: def.special.power.slow
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 81ea587d28ad9a29a8992086d0ca0e5f
+    m_Address: def.level.7
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 82b9d1e3f507589ac1d2e3f4a5b6c7d8
+    m_Address: sfx.gold
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 8d3c1a7e5b924f06a9c2e4d1b0f8a375
+    m_Address: prefab.capsule
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 8f90123456789abcdef0123456789abc
+    m_Address: def.special.power.catalog
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 90123456789abcdef0123456789abcde
+    m_Address: def.iap.catalog
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 93cae2f4061869abd2e3f4a5b6c7d8e9
+    m_Address: sfx.poison
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: a0123456789abcdef0123456789abcde
+    m_Address: ui.shop
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: a0d10ca7a10000000000000000000001
+    m_Address: def.audio.catalog
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: a1b2c3d4e5f60718293a4b5c6d7e8f90
+    m_Address: def.global.settings
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: a4dbf30517297abce3f4a5b6c7d8e9f0
+    m_Address: sfx.complete
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: a7c01c5ac06824f84a0881563103790f
+    m_Address: ui.gameplay
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: a9c4e2b17d8f4065b3a0c1e4f5d67890
+    m_Address: layout.level.1
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: afc32586eb1cc4c1faab2e9aecae1c21
+    m_Address: ui.menu
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: b5ec0416283a8bcdf4a5b6c7d8e9f001
+    m_Address: sfx.fail
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: c1d2e3f405162738495a6b7c8d9e0f12
+    m_Address: def.target.catalog
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: c39f1cebe0e2f42ae84adf68b3aa5cc7
+    m_Address: def.level.16
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: c7e9f1a23b4d5068e0f1a2b3c4d5e678
+    m_Address: def.color.table
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: cbe8c61a593cc621d30f7a84c683e6df
+    m_Address: def.level.13
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: d201a982ebe3b0c530d4eafe9e94f38d
+    m_Address: def.level.8
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: d8e4a1c27b3f4e509c6d8a0b1f2e3456
+    m_Address: input.actions
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: d9e0f1a23b4c5d6e7f8091a2b3c4d5e6
+    m_Address: ui.panel.catalog
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: ded20143c462b49be94425e0692f4520
+    m_Address: def.level.12
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: e1b5c7d40a8e6123d6f9a4e1c3b57082
+    m_Address: prefab.target.4
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: e8ca9c6488276438b83933720aabdf79
+    m_Address: ui.lose
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: f4e5d6c7b8a901234567890abcdef012
+    m_Address: def.level.manifest
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: f6a7b8c9d0e1425364758697a8b9c0d1
+    m_Address: ui.loading
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: fe8520959a1c340d181959353c474d9e
+    m_Address: prefab.target.6
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  m_ReadOnly: 0
+  m_Settings: {fileID: 11400000, guid: 6be6e7321ca6a4531b68bde695ecfc86, type: 2}
+  m_SchemaSet:
+    m_Schemas:
+    - {fileID: 11400000, guid: fcdecc435b6ae473a80dcb1996f3107d, type: 2}
+    - {fileID: 11400000, guid: 378dae04dbdc3492d828fd3a48c17157, type: 2}
