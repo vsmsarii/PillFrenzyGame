@@ -20,7 +20,7 @@ namespace PillFrenzy.Utility
     {
         public static bool Evaluate(this CompareOperation operation, object left, object right)
         {
-            if (TryToDouble(left, out var leftNum) && TryToDouble(right, out var rightNum))
+            if (TryToDouble(left, out double leftNum) && TryToDouble(right, out double rightNum))
                 return FromCmp(leftNum.CompareTo(rightNum), operation);
 
             if (left is UnityEngine.Object || right is UnityEngine.Object)
@@ -104,7 +104,7 @@ namespace PillFrenzy.Utility
             object compareValue,
             bool invert)
         {
-            var condition = FindCondition(property, conditionField);
+            SerializedProperty condition = FindCondition(property, conditionField);
             if (condition == null)
                 return true;
 
@@ -146,7 +146,7 @@ namespace PillFrenzy.Utility
             if (property == null || string.IsNullOrEmpty(conditionField))
                 return null;
 
-            var fromRoot = property.serializedObject.FindProperty(conditionField);
+            SerializedProperty fromRoot = property.serializedObject.FindProperty(conditionField);
             if (fromRoot != null)
                 return fromRoot;
 

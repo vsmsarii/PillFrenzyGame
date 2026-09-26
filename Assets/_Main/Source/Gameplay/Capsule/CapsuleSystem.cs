@@ -15,7 +15,6 @@ namespace PillFrenzy.Gameplay
         private readonly TargetSystem m_Targets;
         private readonly Camera m_Camera;
         private readonly CancellationToken m_DestroyToken;
-        private readonly ColorCatalogSO m_ColorTable;
         private readonly GameplayFeedback m_Feedback;
         private readonly List<CapsuleController> m_Capsules = new();
         private readonly List<CapsuleController> m_SeatedBuffer = new();
@@ -33,7 +32,6 @@ namespace PillFrenzy.Gameplay
             TargetSystem targets,
             Camera camera,
             CancellationToken destroyToken,
-            ColorCatalogSO colorTable,
             GameplayFeedback feedback,
             int capsuleLayerMask)
         {
@@ -41,7 +39,6 @@ namespace PillFrenzy.Gameplay
             m_Targets = targets;
             m_Camera = camera;
             m_DestroyToken = destroyToken;
-            m_ColorTable = colorTable;
             m_Feedback = feedback;
             m_CapsuleLayerMask = capsuleLayerMask;
         }
@@ -54,11 +51,8 @@ namespace PillFrenzy.Gameplay
 
         public void Register(CapsuleController controller)
         {
-            if (controller == null)
-                return;
-
-            controller.ApplyPalette(m_ColorTable);
-            m_Capsules.Add(controller);
+            if (controller != null)
+                m_Capsules.Add(controller);
         }
 
         public void Unregister(CapsuleController controller)
@@ -77,7 +71,7 @@ namespace PillFrenzy.Gameplay
         {
             TryHandleTap();
 
-            if (m_Level == null || m_Level.Phase != ELevelPhase.Playing)
+            if (m_Level.Phase != ELevelPhase.Playing)
                 return;
 
             for (int i = m_Capsules.Count - 1; i >= 0; i--)
@@ -119,7 +113,7 @@ namespace PillFrenzy.Gameplay
             if (IsPointerOverUi(screenPosition))
                 return;
 
-            if (m_Level == null || m_Level.Phase != ELevelPhase.Playing)
+            if (m_Level.Phase != ELevelPhase.Playing)
                 return;
 
             CapsuleController capsule = RaycastCapsule(screenPosition);
@@ -129,7 +123,7 @@ namespace PillFrenzy.Gameplay
             ECapsuleKind kind = capsule.Definition.Kind;
             if (kind == ECapsuleKind.Normal)
             {
-                if (!m_Targets.TryGet(capsule.Definition.Color, out TargetController target))
+                if (!m_Targets.TryGet(capsule.Color, out TargetController target))
                     return;
 
                 if (!target.TryReserveSlot(out Transform slot, out int slotIndex))
@@ -195,11 +189,10 @@ namespace PillFrenzy.Gameplay
         private async UniTaskVoid FlyNormal(CapsuleController capsule, TargetController target, Transform slot, int slotIndex)
         {
             capsule.BeginFlight();
-            await capsule.FlyTo(slot.position + Vector3.up * target.SeatOffset, m_DestroyToken);
+            await capsule.FlyTo(slot.position + Vector3.up * target.SeatOffset, slot.rotation, m_DestroyToken);
             await WaitWhilePaused();
 
             bool aborted = m_DestroyToken.IsCancellationRequested
-                || m_Level == null
                 || m_Level.Phase != ELevelPhase.Playing
                 || capsule == null
                 || target == null;
@@ -216,8 +209,7 @@ namespace PillFrenzy.Gameplay
             m_Spawn.Detach(capsule);
             target.Seat(capsule, slotIndex);
             m_Targets.PublishFill();
-            if (m_Feedback != null)
-                m_Feedback.PlayCorrect(slot.position);
+            m_Feedback.PlayCorrect(slot.position, capsule.Color.Color);
 
             EB.Gameplay.Invoke(new CapsuleResolved(ECapsuleKind.Normal));
 
@@ -228,9 +220,10 @@ namespace PillFrenzy.Gameplay
                     return;
 
                 ReleaseSeated(target);
+                m_Targets.Advance(target);
             }
 
-            if (m_Level.Phase == ELevelPhase.Playing && m_Targets.AreAllFull())
+            if (m_Level.Phase == ELevelPhase.Playing && m_Targets.IsComplete)
                 EB.Gameplay.Invoke(new AllTargetsFilled());
         }
 
@@ -242,30 +235,23 @@ namespace PillFrenzy.Gameplay
                 m_Spawn.Despawn(m_SeatedBuffer[i]);
 
             m_SeatedBuffer.Clear();
-            m_Targets.PublishFill();
         }
 
         private async UniTaskVoid FlySpecial(CapsuleController capsule, Vector3 destination, ECapsuleKind kind)
         {
             capsule.BeginFlight();
-            await capsule.FlyTo(destination, m_DestroyToken);
+            await capsule.FlyTo(destination, capsule.transform.rotation, m_DestroyToken);
             await WaitWhilePaused();
 
-            if (m_DestroyToken.IsCancellationRequested || capsule == null || m_Level == null)
-                return;
-
-            if (m_Level.Phase != ELevelPhase.Playing)
+            if (m_DestroyToken.IsCancellationRequested || capsule == null || m_Level.Phase != ELevelPhase.Playing)
                 return;
 
             EB.Gameplay.Invoke(new CapsuleResolved(kind));
 
-            if (m_Feedback != null)
-            {
-                if (kind == ECapsuleKind.Gold)
-                    m_Feedback.PlayGold(destination);
-                else
-                    m_Feedback.PlayPoison(destination);
-            }
+            if (kind == ECapsuleKind.Gold)
+                m_Feedback.PlayGold(destination, capsule.Color.Color);
+            else
+                m_Feedback.PlayPoison(destination, capsule.Color.Color);
 
             if (m_Level.Phase == ELevelPhase.Playing)
                 m_Spawn.Despawn(capsule);
@@ -273,11 +259,11 @@ namespace PillFrenzy.Gameplay
 
         private async UniTask WaitWhilePaused()
         {
-            if (m_Level == null || m_Level.Phase != ELevelPhase.Paused)
+            if (m_Level.Phase != ELevelPhase.Paused)
                 return;
 
             await UniTask.WaitWhile(
-                () => m_Level != null && m_Level.Phase == ELevelPhase.Paused,
+                () => m_Level.Phase == ELevelPhase.Paused,
                 cancellationToken: m_DestroyToken).SuppressCancellationThrow();
         }
 

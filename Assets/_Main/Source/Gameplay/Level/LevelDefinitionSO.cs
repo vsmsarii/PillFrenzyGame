@@ -7,12 +7,11 @@ namespace PillFrenzy.Gameplay
     [Serializable]
     public struct TargetQuota
     {
-        [SerializeField] private ECapsuleColor m_Color;
-        [SerializeField] private ETargetCapacity m_Amount;
+        [SerializeField] private CapsuleColorSO m_Color;
+        [SerializeField] private ETargetCapacity m_Capacity;
 
-        public ECapsuleColor Color => m_Color;
-        public ETargetCapacity Capacity => m_Amount;
-        public int Amount => (int)m_Amount;
+        public CapsuleColorSO Color => m_Color;
+        public ETargetCapacity Capacity => m_Capacity;
     }
 
     [CreateAssetMenu(menuName = "PillFrenzy/Level Definition", fileName = "LevelDefinition")]
@@ -34,17 +33,24 @@ namespace PillFrenzy.Gameplay
         [SerializeField, Min(0f)] private float m_SpeedRamp = 0.12f;
 
         [Header("Capsules")]
-        [SerializeField] private CapsuleDefinitionSO[] m_CapsuleDefinitions;
+        [SerializeField] private CapsuleDefinitionSO m_NormalDefinition;
         [SerializeField, Range(0f, 1f)] private float m_GoldChance = 0.1f;
         [SerializeField] private CapsuleDefinitionSO m_GoldDefinition;
         [SerializeField, Range(0f, 1f)] private float m_PoisonChance = 0.1f;
         [SerializeField] private CapsuleDefinitionSO m_PoisonDefinition;
 
         [Header("Targets")]
-        [SerializeField] private TargetQuota[] m_TargetQuotas;
+        [SerializeField] private TargetQuota[] m_TargetQueue;
 
         [Header("Layout")]
         [SerializeField] private AssetReferenceGameObject m_Layout;
+
+        [Header("Camera")]
+        [SerializeField] private float m_CameraDistance;
+        [SerializeField, Range(10f, 89f)] private float m_CameraPitch = 47.46f;
+        [SerializeField] private float m_CameraYaw;
+        [SerializeField, Range(20f, 90f)] private float m_FieldOfView = 60f;
+        [SerializeField, Min(0f)] private float m_FramingPadding = 0.75f;
 
         public float SpawnInterval => m_SpawnInterval;
         public float MinSpawnInterval => Mathf.Min(m_SpawnInterval, m_MinSpawnInterval);
@@ -52,8 +58,8 @@ namespace PillFrenzy.Gameplay
         public float MaxConveyorSpeed => Mathf.Max(m_ConveyorSpeed, m_MaxConveyorSpeed);
         public float SpeedRamp => m_SpeedRamp;
         public int MaxActive => m_MaxActive;
-        public CapsuleDefinitionSO[] CapsuleDefinitions => m_CapsuleDefinitions;
-        public TargetQuota[] TargetQuotas => m_TargetQuotas;
+        public CapsuleDefinitionSO NormalDefinition => m_NormalDefinition;
+        public TargetQuota[] TargetQueue => m_TargetQueue;
         public int StartingHealth => m_StartingHealth;
         public int ScorePerCorrect => m_ScorePerCorrect;
         public CapsuleDefinitionSO GoldDefinition => m_GoldDefinition;
@@ -62,6 +68,10 @@ namespace PillFrenzy.Gameplay
         public float PoisonChance => m_PoisonChance;
         public bool ReturnToMenu => m_ReturnToMenu;
         public AssetReferenceGameObject Layout => m_Layout;
+        public float CameraDistance => m_CameraDistance;
+        public Quaternion CameraRotation => Quaternion.Euler(m_CameraPitch, m_CameraYaw, 0f);
+        public float FieldOfView => m_FieldOfView;
+        public float FramingPadding => m_FramingPadding;
 
         public bool TryGetLayoutKey(out string key)
         {

@@ -15,16 +15,17 @@ namespace PillFrenzy.Gameplay
         [SerializeField] private float m_ExitDelay = 0.5f;
         [SerializeField] private float m_SeatOffset = 0.7f;
 
-        private ECapsuleColor m_Color;
+        private CapsuleColorSO m_Color;
         private int m_Capacity;
         private TargetView m_View;
         private CapsuleController[] m_Seated;
         private bool[] m_Reserved;
         private Transform m_ResolvedExit;
         private Tween m_ExitTween;
+        private Tween m_MoveTween;
         private bool m_Filled;
 
-        public ECapsuleColor CapsuleColor => m_Color;
+        public CapsuleColorSO CapsuleColor => m_Color;
         public int Capacity => m_Capacity;
         public float SeatOffset => m_SeatOffset;
         public int Occupied
@@ -50,20 +51,21 @@ namespace PillFrenzy.Gameplay
         public bool IsFilled => m_Filled;
         public bool CanAccept => !m_Filled && HasFreeSlot();
 
-        public void Initialize(ECapsuleColor color, int capacity, Transform fallbackExit, ColorCatalogSO table)
+        public void Initialize(CapsuleColorSO color, int capacity, Transform fallbackExit)
         {
-            KillExit();
+            KillTweens();
 
             m_Color = color;
             m_Filled = false;
             m_ResolvedExit = m_ExitPoint != null ? m_ExitPoint : fallbackExit;
+            if (m_ResolvedExit == null)
+                Logger.Error("Target has no exit point.", this);
             m_Capacity = ResolveCapacity(capacity);
             m_Seated = new CapsuleController[m_Capacity];
             m_Reserved = new bool[m_Capacity];
 
             m_View = GetComponent<TargetView>();
-            Color tint = table != null ? table.Get(m_Color) : Color.white;
-            m_View.Initialize(tint);
+            m_View.Initialize(m_Color.Color);
         }
 
         public bool TryReserveSlot(out Transform slot, out int index)
@@ -107,7 +109,7 @@ namespace PillFrenzy.Gameplay
 
             m_Reserved[index] = true;
             m_Seated[index] = capsule;
-            capsule.AttachToSlot(slot);
+            capsule.AttachToSlot(slot, m_SeatOffset);
             if (m_View != null)
                 m_View.PlayLanded();
 
@@ -117,10 +119,11 @@ namespace PillFrenzy.Gameplay
 
         public async UniTask PlayExit(CancellationToken cancellationToken)
         {
-            KillExit();
-            Vector3 destination = m_ResolvedExit != null
-                ? m_ResolvedExit.position
-                : transform.position + Vector3.right * 12f;
+            KillTweens();
+            if (m_ResolvedExit == null)
+                return;
+
+            Vector3 destination = m_ResolvedExit.position;
 
             UniTaskCompletionSource source = new UniTaskCompletionSource();
             bool completed = false;
@@ -165,7 +168,24 @@ namespace PillFrenzy.Gameplay
             }
         }
 
-        public void KillExit()
+        public void MoveTo(Vector3 localPosition, float duration)
+        {
+            if (m_MoveTween != null && m_MoveTween.IsActive())
+                m_MoveTween.Kill();
+
+            m_MoveTween = transform.DOLocalMove(localPosition, duration).SetEase(Ease.OutCubic).SetLink(gameObject);
+        }
+
+        public void KillTweens()
+        {
+            KillExit();
+            if (m_MoveTween != null && m_MoveTween.IsActive())
+                m_MoveTween.Kill();
+
+            m_MoveTween = null;
+        }
+
+        private void KillExit()
         {
             if (m_ExitTween != null && m_ExitTween.IsActive())
                 m_ExitTween.Kill();
@@ -194,7 +214,7 @@ namespace PillFrenzy.Gameplay
 
             for (int i = 0; i < m_Capacity; i++)
             {
-                if (m_Slots != null && i < m_Slots.Length && m_Slots[i] == null)
+                if (m_Slots[i] == null)
                     continue;
 
                 if (m_Seated[i] == null)

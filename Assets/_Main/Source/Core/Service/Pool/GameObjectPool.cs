@@ -21,6 +21,7 @@ namespace PillFrenzy.Core
         protected override void OnInitialize()
         {
             GameObject root = new GameObject("[GameObjectPool]");
+            root.SetActive(false);
             UnityEngine.Object.DontDestroyOnLoad(root);
             m_Root = root.transform;
         }
@@ -34,11 +35,12 @@ namespace PillFrenzy.Core
                 return instance;
             }
 
-            instance = await m_Assets.Instantiate(key, parent, cancellationToken);
+            instance = await m_Assets.Instantiate(key, m_Root, cancellationToken);
             if (instance == null)
                 return null;
 
             m_KeyByInstance[instance] = key;
+            instance.transform.SetParent(parent, false);
             return instance;
         }
 

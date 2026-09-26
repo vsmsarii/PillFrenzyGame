@@ -9,7 +9,7 @@ MonoBehaviour:
   m_GameObject: {fileID: 0}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: b0a0d10ca7a100000000000000000002, type: 3}
+  m_Script: {fileID: 11500000, guid: 59ff067c0a0e476cb0216b6949b2a51a, type: 3}
   m_Name: AudioCatalog
   m_EditorClassIdentifier: 
   m_Entries:
@@ -24,8 +24,8 @@ MonoBehaviour:
   - m_Name: 5
     m_Clip: {fileID: 8300000, guid: 49fd8f26329a7d447b6232131cfd5e71, type: 3}
   - m_Name: 6
-    m_Clip: {fileID: 8300000, guid: a4dbf30517297abce3f4a5b6c7d8e9f0, type: 3}
+    m_Clip: {fileID: 8300000, guid: 3538c2b87547497e85def5d80dd5e59e, type: 3}
   - m_Name: 7
-    m_Clip: {fileID: 8300000, guid: b5ec0416283a8bcdf4a5b6c7d8e9f001, type: 3}
+    m_Clip: {fileID: 8300000, guid: cfa3fb8348c141aa92609b45ab53da09, type: 3}
   - m_Name: 8
     m_Clip: {fileID: 8300000, guid: a550cb02580f00c40b4ba02aeff3acb4, type: 3}

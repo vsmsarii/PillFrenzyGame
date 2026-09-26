@@ -49,7 +49,7 @@ namespace PillFrenzy.Core
             if (m_SoundMuted || m_SfxSource == null || name == EAudioName.None)
                 return;
 
-            if (!m_Clips.TryGetValue(name, out AudioClip clip) || clip == null)
+            if (!m_Clips.TryGetValue(name, out AudioClip clip))
                 return;
 
             m_SfxSource.PlayOneShot(clip);
@@ -66,7 +66,7 @@ namespace PillFrenzy.Core
                 return;
             }
 
-            if (!m_Clips.TryGetValue(name, out AudioClip clip) || clip == null)
+            if (!m_Clips.TryGetValue(name, out AudioClip clip))
             {
                 StopMusic();
                 return;
@@ -74,8 +74,6 @@ namespace PillFrenzy.Core
 
             m_CurrentMusic = name;
             m_MusicSource.clip = clip;
-            m_MusicSource.loop = true;
-            m_MusicSource.mute = m_MusicMuted;
             m_MusicSource.Play();
         }
 

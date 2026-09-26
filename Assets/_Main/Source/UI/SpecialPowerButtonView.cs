@@ -1,8 +1,8 @@
 using System;
+using PillFrenzy.Gameplay;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
-using PillFrenzy.Gameplay;
 
 namespace PillFrenzy.UI
 {
@@ -14,65 +14,43 @@ namespace PillFrenzy.UI
         [SerializeField] private TMP_Text m_Timer;
 
         private Action m_Click;
-        private int m_ShownCharges = int.MinValue;
-        private int m_ShownTimerTenths = int.MinValue;
-        private bool m_ShownInteractable = true;
-        private bool m_HasShownInteractable;
+        private int m_ShownCharges = -1;
+        private int m_ShownTimerTenths = -2;
 
         public void Bind(SpecialPowerDefinitionSO definition, Action click)
         {
             m_Click = click;
-            m_ShownCharges = int.MinValue;
-            m_ShownTimerTenths = int.MinValue;
-            m_HasShownInteractable = false;
+            m_ShownCharges = -1;
+            m_ShownTimerTenths = -2;
 
-            if (m_Button != null)
-            {
-                m_Button.onClick.RemoveListener(OnClicked);
-                m_Button.onClick.AddListener(OnClicked);
-            }
+            m_Button.onClick.RemoveListener(OnClicked);
+            m_Button.onClick.AddListener(OnClicked);
 
-            if (m_Icon != null && definition != null && definition.Icon != null)
+            if (definition.Icon != null)
                 m_Icon.sprite = definition.Icon;
         }
 
         public void SetState(int charges, bool active, float remaining)
         {
-            if (m_Charges != null && charges != m_ShownCharges)
+            m_Button.interactable = !active && charges > 0;
+
+            if (charges != m_ShownCharges)
             {
                 m_ShownCharges = charges;
                 m_Charges.text = charges.ToString();
             }
 
-            if (m_Timer != null)
-            {
-                int tenths = active && remaining > 0f ? Mathf.RoundToInt(remaining * 10f) : -1;
-                if (tenths != m_ShownTimerTenths)
-                {
-                    m_ShownTimerTenths = tenths;
-                    if (tenths < 0)
-                        m_Timer.text = string.Empty;
-                    else
-                        m_Timer.text = (tenths / 10f).ToString("0.0") + "s";
-                }
-            }
+            int tenths = active && remaining > 0f ? Mathf.RoundToInt(remaining * 10f) : -1;
+            if (tenths == m_ShownTimerTenths)
+                return;
 
-            if (m_Button != null)
-            {
-                bool interactable = !active && charges > 0;
-                if (!m_HasShownInteractable || interactable != m_ShownInteractable)
-                {
-                    m_HasShownInteractable = true;
-                    m_ShownInteractable = interactable;
-                    m_Button.interactable = interactable;
-                }
-            }
+            m_ShownTimerTenths = tenths;
+            m_Timer.text = tenths < 0 ? string.Empty : (tenths / 10f).ToString("0.0") + "s";
         }
 
         private void OnClicked()
         {
-            if (m_Click != null)
-                m_Click.Invoke();
+            m_Click.Invoke();
         }
     }
 }

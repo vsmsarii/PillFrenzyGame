@@ -108,11 +108,12 @@ namespace PillFrenzy.Core
             if (m_PurchaseTcs != null)
                 return false;
 
-            m_PurchaseTcs = new UniTaskCompletionSource<bool>();
-            using (cancellationToken.Register(() => m_PurchaseTcs.TrySetResult(false)))
+            UniTaskCompletionSource<bool> purchaseTcs = new UniTaskCompletionSource<bool>();
+            m_PurchaseTcs = purchaseTcs;
+            using (cancellationToken.Register(() => AbandonPurchase(purchaseTcs)))
             {
                 m_Store.PurchaseProduct(productKey);
-                return await m_PurchaseTcs.Task;
+                return await purchaseTcs.Task;
             }
         }
 
@@ -205,7 +206,9 @@ namespace PillFrenzy.Core
                 granted = true;
             }
 
-            if (m_Store != null && order != null)
+            if (!granted)
+                Logger.Error("IAP pending order for unknown product left unconfirmed: " + productId);
+            else if (m_Store != null && order != null)
                 m_Store.ConfirmPurchase(order);
 
             CompletePurchase(granted);
@@ -265,6 +268,14 @@ namespace PillFrenzy.Core
             UniTaskCompletionSource<bool> tcs = m_PurchaseTcs;
             m_PurchaseTcs = null;
             tcs.TrySetResult(success);
+        }
+
+        private void AbandonPurchase(UniTaskCompletionSource<bool> tcs)
+        {
+            if (m_PurchaseTcs == tcs)
+                m_PurchaseTcs = null;
+
+            tcs.TrySetResult(false);
         }
 
         private void ApplyReward(IAPCatalogEntry entry)

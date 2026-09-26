@@ -8,56 +8,64 @@ namespace PillFrenzy.Gameplay
 {
     public sealed class TargetSystem
     {
-        private readonly ColorCatalogSO m_ColorTable;
         private readonly TargetFactory m_Factory;
-        private readonly List<TargetController> m_Targets = new();
+        private readonly List<TargetController> m_Visible = new();
+
+        private TargetQuota[] m_Queue;
+        private int m_NextIndex;
+        private Transform m_Origin;
+        private Transform m_FallbackExit;
+        private CancellationToken m_Token;
+        private bool m_Filling;
         private TargetFill[] m_Fills;
 
-        public TargetSystem(ColorCatalogSO colorTable, TargetFactory factory)
+        private TargetCatalogSO Catalog => m_Factory.Catalog;
+
+        public bool IsComplete => m_Queue != null && m_NextIndex >= m_Queue.Length && m_Visible.Count == 0 && !m_Filling;
+
+        public TargetSystem(TargetFactory factory)
         {
-            m_ColorTable = colorTable;
             m_Factory = factory;
         }
 
         public async UniTask Bind(LevelDefinitionSO definition, LevelLayout layout, CancellationToken cancellationToken)
         {
-            Transform origin = layout != null ? layout.TargetSpawnPoint : null;
-            if (origin == null)
+            m_Origin = layout.TargetSpawnPoint;
+            if (m_Origin == null)
             {
                 Logger.Error("Level prefab is missing target spawn point.");
                 return;
             }
 
-            TargetQuota[] quotas = definition != null ? definition.TargetQuotas : null;
-            if (quotas == null || quotas.Length == 0)
+            m_Queue = definition.TargetQueue;
+            if (m_Queue == null || m_Queue.Length == 0)
             {
-                Logger.Error("LevelDefinition has no target quotas.");
+                Logger.Error("LevelDefinition has an empty target queue.");
                 return;
             }
 
-            HideExistingChildren(origin);
+            m_FallbackExit = layout.TargetExit;
+            m_Token = cancellationToken;
+            HideExistingChildren(m_Origin);
 
-            float spacing = m_Factory.Spacing;
-            for (int i = 0; i < quotas.Length; i++)
+            while (m_Visible.Count < Catalog.VisibleCount && m_NextIndex < m_Queue.Length)
             {
-                TargetQuota quota = quotas[i];
-                TargetController target = await m_Factory.Create(quota.Capacity, origin, cancellationToken);
-                if (target == null || cancellationToken.IsCancellationRequested)
+                TargetController target = await SpawnNext();
+                if (target == null)
                     return;
 
-                target.transform.SetLocalPositionAndRotation(Vector3.left * (i * spacing), Quaternion.identity);
-                Register(target, layout.TargetExit, quota.Color, quota.Amount);
+                target.transform.localPosition = SlotPosition(m_Visible.Count - 1);
             }
 
             PublishFill();
         }
 
-        public bool TryGet(ECapsuleColor color, out TargetController target)
+        public bool TryGet(CapsuleColorSO color, out TargetController target)
         {
-            for (int i = 0; i < m_Targets.Count; i++)
+            for (int i = 0; i < m_Visible.Count; i++)
             {
-                TargetController candidate = m_Targets[i];
-                if (candidate != null && candidate.CapsuleColor == color && candidate.CanAccept)
+                TargetController candidate = m_Visible[i];
+                if (candidate.CapsuleColor == color && candidate.CanAccept)
                 {
                     target = candidate;
                     return true;
@@ -68,87 +76,107 @@ namespace PillFrenzy.Gameplay
             return false;
         }
 
-        public bool AreAllFull()
+        public void Advance(TargetController target)
         {
-            if (m_Targets.Count == 0)
-                return false;
+            if (!m_Visible.Remove(target))
+                return;
 
-            for (int i = 0; i < m_Targets.Count; i++)
-            {
-                TargetController target = m_Targets[i];
-                if (target == null || !target.IsFilled)
-                    return false;
-            }
+            m_Factory.Release(target);
+            for (int i = 0; i < m_Visible.Count; i++)
+                m_Visible[i].MoveTo(SlotPosition(i), Catalog.ShiftDuration);
 
-            return true;
+
+            PublishFill();
+            FillAsync().Forget();
         }
 
         public void CollectSeated(List<CapsuleController> buffer)
         {
-            for (int i = 0; i < m_Targets.Count; i++)
+            for (int i = 0; i < m_Visible.Count; i++)
             {
-                TargetController target = m_Targets[i];
-                if (target == null)
-                    continue;
-
-                target.KillExit();
-                target.CollectSeated(buffer);
+                m_Visible[i].KillTweens();
+                m_Visible[i].CollectSeated(buffer);
             }
         }
 
         public void Shutdown()
         {
-            for (int i = 0; i < m_Targets.Count; i++)
-                m_Factory.Release(m_Targets[i]);
+            for (int i = 0; i < m_Visible.Count; i++)
+                m_Factory.Release(m_Visible[i]);
 
-            m_Targets.Clear();
+            m_Visible.Clear();
+            m_Queue = null;
             m_Fills = null;
-        }
-
-        private void Register(TargetController target, Transform fallbackExit, ECapsuleColor color, int capacity)
-        {
-            if (target == null)
-                return;
-
-            target.Initialize(color, capacity, fallbackExit, m_ColorTable);
-            m_Targets.Add(target);
         }
 
         public void PublishFill()
         {
-            if (m_Fills == null || m_Fills.Length != m_Targets.Count)
-                m_Fills = new TargetFill[m_Targets.Count];
+            if (m_Fills == null || m_Fills.Length != m_Visible.Count)
+                m_Fills = new TargetFill[m_Visible.Count];
 
-            for (int i = 0; i < m_Targets.Count; i++)
+            for (int i = 0; i < m_Visible.Count; i++)
             {
-                TargetController target = m_Targets[i];
-                if (target == null)
-                {
-                    m_Fills[i] = default;
-                    continue;
-                }
-
+                TargetController target = m_Visible[i];
                 m_Fills[i] = new TargetFill(target.CapsuleColor, target.Occupied, target.Capacity);
             }
 
-            EB.Presentation.Invoke(new RunTargetFillChanged(m_Fills));
+            int remaining = m_Queue != null ? m_Queue.Length - m_NextIndex : 0;
+            EB.Presentation.Invoke(new RunTargetFillChanged(m_Fills, remaining));
+        }
+
+        private async UniTaskVoid FillAsync()
+        {
+            if (m_Filling)
+                return;
+
+            m_Filling = true;
+            while (m_Visible.Count < Catalog.VisibleCount && m_NextIndex < m_Queue.Length)
+            {
+                TargetController target = await SpawnNext();
+                if (target == null)
+                    break;
+
+                target.transform.localPosition = SlotPosition(ActiveCount);
+                target.MoveTo(SlotPosition(m_Visible.Count - 1), Catalog.ShiftDuration);
+                PublishFill();
+            }
+
+            m_Filling = false;
+        }
+
+        private async UniTask<TargetController> SpawnNext()
+        {
+            TargetQuota quota = m_Queue[m_NextIndex];
+            TargetController target = await m_Factory.Create(quota.Capacity, m_Origin, m_Token);
+            if (m_Token.IsCancellationRequested || m_Queue == null)
+            {
+                if (target != null)
+                    m_Factory.Release(target);
+
+                return null;
+            }
+
+            m_NextIndex++;
+            if (target == null)
+                return null;
+
+            target.transform.localRotation = Quaternion.identity;
+            target.Initialize(quota.Color, (int)quota.Capacity, m_FallbackExit);
+            m_Visible.Add(target);
+            return target;
+        }
+
+        private int ActiveCount => Mathf.Min(Catalog.VisibleCount, m_Visible.Count + m_Queue.Length - m_NextIndex);
+
+        private Vector3 SlotPosition(int index)
+        {
+            return Vector3.right * (((ActiveCount - 1) * 0.5f - index) * Catalog.Spacing);
         }
 
         private static void HideExistingChildren(Transform origin)
         {
-            int count = origin.childCount;
-            if (count == 0)
-                return;
-
-            Transform[] children = new Transform[count];
-            for (int i = 0; i < count; i++)
-                children[i] = origin.GetChild(i);
-
-            for (int i = 0; i < children.Length; i++)
-            {
-                if (children[i] != null)
-                    children[i].gameObject.SetActive(false);
-            }
+            for (int i = 0; i < origin.childCount; i++)
+                origin.GetChild(i).gameObject.SetActive(false);
         }
     }
 }

@@ -523,12 +523,12 @@ MonoBehaviour:
   m_GameObject: {fileID: 100005}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 6d7e8f90123456789abcdef012345678, type: 3}
+  m_Script: {fileID: 11500000, guid: a97a3f738b8a4d53ab18e75d4299bf49, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PillFrenzy.UI.ShopCanvasUI
   m_CloseButton: {fileID: 300004}
   m_Content: {fileID: 500001}
-  m_ItemPrefab: {fileID: 1004, guid: a1b2c3d4e5f60718293a4b5c6d7e8f91, type: 3}
+  m_ItemPrefab: {fileID: 1004, guid: e5020ed27efe41cfbf9a89411fe343a6, type: 3}
 --- !u!1 &2379863941165550470
 GameObject:
   m_ObjectHideFlags: 0

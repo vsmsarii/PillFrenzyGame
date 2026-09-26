@@ -14,7 +14,7 @@ namespace PillFrenzy.Core
         [SerializeField] private string m_GooglePlayId;
         [SerializeField] private string m_AppStoreId;
         [SerializeField] private EIAPRewardType m_RewardType;
-        [SerializeField] private int m_RewardAmount;
+        [SerializeField, Min(1)] private int m_RewardAmount;
         [SerializeField] private ESpecialPowerId m_PowerId;
 
         public string Key => m_Key;
@@ -25,7 +25,7 @@ namespace PillFrenzy.Core
         public string GooglePlayId => m_GooglePlayId;
         public string AppStoreId => m_AppStoreId;
         public EIAPRewardType RewardType => m_RewardType;
-        public int RewardAmount => m_RewardAmount < 1 ? 1 : m_RewardAmount;
+        public int RewardAmount => m_RewardAmount;
         public ESpecialPowerId PowerId => m_PowerId;
     }
 

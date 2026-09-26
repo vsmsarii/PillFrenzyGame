@@ -1,9 +1,9 @@
+using System.Collections.Generic;
 using System.IO;
+using System.Text;
 using PillFrenzy.Core;
 using PillFrenzy.Gameplay;
 using UnityEditor;
-using UnityEditor.AddressableAssets;
-using UnityEditor.AddressableAssets.Settings;
 using UnityEngine;
 
 namespace PillFrenzy.Editor
@@ -17,12 +17,86 @@ namespace PillFrenzy.Editor
         {
             DrawDefaultInspector();
 
+            LevelDefinitionSO definition = (LevelDefinitionSO)target;
             EditorGUILayout.Space(12f);
-            if (!GUILayout.Button("Create Next Level", GUILayout.Height(32f)))
-                return;
+            DrawQueueSummary(definition);
 
-            LevelDefinitionSO source = (LevelDefinitionSO)target;
-            CreateNextLevel(source);
+            EditorGUILayout.Space(12f);
+            using (new EditorGUILayout.HorizontalScope())
+            {
+                LevelLayout layout = LoadLayout(definition);
+                if (layout == null)
+                {
+                    if (GUILayout.Button("Create Layout", GUILayout.Height(32f)))
+                        LevelAuthoring.CreateLayoutFor(definition);
+                }
+                else
+                {
+                    if (GUILayout.Button("Edit Layout", GUILayout.Height(32f)))
+                        AssetDatabase.OpenAsset(layout.gameObject);
+
+                    if (GUILayout.Button("New Layout", GUILayout.Height(32f)))
+                        LevelAuthoring.CreateLayoutFor(definition);
+                }
+            }
+
+            if (GUILayout.Button("Create Next Level", GUILayout.Height(32f)))
+                CreateNextLevel(definition);
+        }
+
+        private static void DrawQueueSummary(LevelDefinitionSO definition)
+        {
+            EditorGUILayout.LabelField("Target Queue", EditorStyles.boldLabel);
+
+            TargetQuota[] queue = definition.TargetQueue;
+            if (queue == null || queue.Length == 0)
+            {
+                EditorGUILayout.HelpBox("Target queue is empty. The level can never complete.", MessageType.Error);
+                return;
+            }
+
+            Dictionary<CapsuleColorSO, int> required = new();
+            bool hasMissingColor = false;
+            for (int i = 0; i < queue.Length; i++)
+            {
+                if (queue[i].Color == null)
+                {
+                    hasMissingColor = true;
+                    continue;
+                }
+
+                required.TryGetValue(queue[i].Color, out int count);
+                required[queue[i].Color] = count + (int)queue[i].Capacity;
+            }
+
+            StringBuilder summary = new StringBuilder(queue.Length + " boxes");
+            foreach (KeyValuePair<CapsuleColorSO, int> pair in required)
+                summary.Append("   ").Append(pair.Key.name).Append(' ').Append(pair.Value);
+
+            EditorGUILayout.LabelField(summary.ToString(), EditorStyles.wordWrappedMiniLabel);
+
+            if (hasMissingColor)
+                EditorGUILayout.HelpBox("Some boxes have no color assigned.", MessageType.Error);
+
+            LevelLayout layout = LoadLayout(definition);
+            if (layout == null)
+            {
+                EditorGUILayout.HelpBox("Level has no layout. The manifest default layout is used until you create one.", MessageType.Info);
+                return;
+            }
+
+            HashSet<CapsuleColorSO> spawned = LevelAuthoring.CollectSpawnedColors(layout);
+            foreach (CapsuleColorSO color in required.Keys)
+            {
+                if (!spawned.Contains(color))
+                    EditorGUILayout.HelpBox("No path in " + layout.name + " spawns " + color.name + ".", MessageType.Error);
+            }
+        }
+
+        private static LevelLayout LoadLayout(LevelDefinitionSO definition)
+        {
+            GameObject prefab = definition.Layout != null ? definition.Layout.editorAsset : null;
+            return prefab != null ? prefab.GetComponent<LevelLayout>() : null;
         }
 
         private static void CreateNextLevel(LevelDefinitionSO source)
@@ -30,7 +104,7 @@ namespace PillFrenzy.Editor
             if (source == null)
                 return;
 
-            LevelManifestSO manifest = FindManifest();
+            LevelManifestSO manifest = LevelAuthoring.FindManifest();
             if (manifest == null)
             {
                 EditorUtility.DisplayDialog("Level Manifest", "LevelManifestSO asset not found.", "OK");
@@ -65,7 +139,7 @@ namespace PillFrenzy.Editor
 
             string newGuid = AssetDatabase.AssetPathToGUID(newPath);
             AppendToManifest(manifest, newGuid);
-            EnsureAddressable(newGuid, AddressableKeys.DefLevel(nextNumber - 1));
+            LevelAuthoring.EnsureAddressable(newGuid, AddressableKeys.DefLevel(nextNumber - 1));
 
             if (IsLastEntry(manifest, source) && source.ReturnToMenu)
             {
@@ -78,16 +152,6 @@ namespace PillFrenzy.Editor
             AssetDatabase.SaveAssets();
             Selection.activeObject = created;
             EditorGUIUtility.PingObject(created);
-        }
-
-        private static LevelManifestSO FindManifest()
-        {
-            string[] guids = AssetDatabase.FindAssets("t:LevelManifestSO");
-            if (guids == null || guids.Length == 0)
-                return null;
-
-            string path = AssetDatabase.GUIDToAssetPath(guids[0]);
-            return AssetDatabase.LoadAssetAtPath<LevelManifestSO>(path);
         }
 
         private static bool IsLastEntry(LevelManifestSO manifest, LevelDefinitionSO definition)
@@ -127,22 +191,6 @@ namespace PillFrenzy.Editor
 
             so.ApplyModifiedPropertiesWithoutUndo();
             EditorUtility.SetDirty(manifest);
-        }
-
-        private static void EnsureAddressable(string guid, string address)
-        {
-            AddressableAssetSettings settings = AddressableAssetSettingsDefaultObject.GetSettings(true);
-            if (settings == null || string.IsNullOrEmpty(guid))
-                return;
-
-            AddressableAssetEntry entry = settings.FindAssetEntry(guid);
-            if (entry == null)
-                entry = settings.CreateOrMoveEntry(guid, settings.DefaultGroup, false, false);
-
-            if (entry != null && entry.address != address)
-                entry.SetAddress(address, false);
-
-            EditorUtility.SetDirty(settings);
         }
     }
 }

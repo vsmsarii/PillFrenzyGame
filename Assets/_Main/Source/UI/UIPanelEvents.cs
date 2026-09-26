@@ -58,7 +58,7 @@ namespace PillFrenzy.UI
 
         public LoadingProgressChanged(float progress)
         {
-            Progress = progress < 0f ? 0f : (progress > 1f ? 1f : progress);
+            Progress = progress;
         }
     }
 }

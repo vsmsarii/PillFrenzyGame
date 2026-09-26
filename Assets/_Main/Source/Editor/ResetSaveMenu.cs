@@ -2,7 +2,7 @@ using PillFrenzy.Core;
 using UnityEditor;
 using UnityEngine;
 
-namespace Utilities
+namespace PillFrenzy.Editor
 {
     public static class ResetSaveMenu
     {

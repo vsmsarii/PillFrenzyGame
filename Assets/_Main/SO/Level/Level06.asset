@@ -9,32 +9,31 @@ MonoBehaviour:
   m_GameObject: {fileID: 0}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 7b2d4f6081935cae9f1b2d3e4a5c6b78, type: 3}
+  m_Script: {fileID: 11500000, guid: 5a6fd3924dee43e3b1724a317d2fc934, type: 3}
   m_Name: Level06
   m_EditorClassIdentifier: 
   m_StartingHealth: 3
   m_ScorePerCorrect: 10
+  m_ReturnToMenu: 0
   m_SpawnInterval: 0.962
   m_MinSpawnInterval: 0.388
+  m_MaxActive: 7
   m_ConveyorSpeed: 3.1
   m_MaxConveyorSpeed: 6.075
   m_SpeedRamp: 0.18
-  m_MaxActive: 7
-  m_CapsuleDefinitions:
-  - {fileID: 11400000, guid: 21c4e8a07b3d4f159e6a8c2d4b0f1735, type: 2}
-  - {fileID: 11400000, guid: 32d5f9b18c4e5026af7b9d3e5c102846, type: 2}
+  m_NormalDefinition: {fileID: 11400000, guid: 3d1ebbed3015415f953b1db11acdd51f, type: 2}
   m_GoldChance: 0.12
-  m_GoldDefinition: {fileID: 11400000, guid: 54f7a1b20c6e7248b19cae5f7d324068, type: 2}
+  m_GoldDefinition: {fileID: 11400000, guid: 8ed688fa1bd6444baa367e646f2c210c, type: 2}
   m_PoisonChance: 0.125
-  m_PoisonDefinition: {fileID: 11400000, guid: 65a8b2c31d7f8359c20dbf6e8e435179, type: 2}
-  m_TargetQuotas:
-  - m_Color: 0
-    m_Amount: 6
-  - m_Color: 1
-    m_Amount: 4
-  m_ReturnToMenu: 0
+  m_PoisonDefinition: {fileID: 11400000, guid: f538707661c54eb29f1a4e9a53f894ac, type: 2}
+  m_TargetQueue:
+  - m_Color: {fileID: 11400000, guid: f90ab421e58854944b5db7bad643340c, type: 2}
+    m_Capacity: 6
+  - m_Color: {fileID: 11400000, guid: 1738d2ce97a2940bbb256c37925f7c1a, type: 2}
+    m_Capacity: 4
   m_Layout:
-    m_AssetGUID: 6097bfc13de59768a5f6781920212223
+    m_AssetGUID: ccf4b22368cf46909f6db70216f8489d
     m_SubObjectName: 
     m_SubObjectType: 
+    m_SubObjectGUID: 
     m_EditorAssetChanged: 0

@@ -8,31 +8,16 @@ namespace PillFrenzy.Gameplay
     {
         [SerializeField] private float m_ShakeDuration;
         [SerializeField] private float m_ShakeStrength;
-        [SerializeField] private bool m_HasBurst;
-        [SerializeField] private float m_BurstStartScale;
-        [SerializeField] private float m_BurstEndScale;
-        [SerializeField] private float m_BurstGrowDuration;
-        [SerializeField] private float m_BurstLifetimeSeconds;
 
         public float ShakeDuration => m_ShakeDuration;
         public float ShakeStrength => m_ShakeStrength;
-        public bool HasBurst => m_HasBurst;
-        public float BurstStartScale => m_BurstStartScale <= 0f ? 0.18f : m_BurstStartScale;
-        public float BurstEndScale => m_BurstEndScale <= 0f ? 0.65f : m_BurstEndScale;
-        public float BurstGrowDuration => m_BurstGrowDuration <= 0f ? 0.28f : m_BurstGrowDuration;
-        public float BurstLifetimeSeconds => m_BurstLifetimeSeconds <= 0f ? 0.32f : m_BurstLifetimeSeconds;
 
-        public static FeedbackProfile Create(float shakeDuration, float shakeStrength, bool hasBurst)
+        public static FeedbackProfile Create(float shakeDuration, float shakeStrength)
         {
             return new FeedbackProfile
             {
                 m_ShakeDuration = shakeDuration,
-                m_ShakeStrength = shakeStrength,
-                m_HasBurst = hasBurst,
-                m_BurstStartScale = 0.18f,
-                m_BurstEndScale = 0.65f,
-                m_BurstGrowDuration = 0.28f,
-                m_BurstLifetimeSeconds = 0.32f
+                m_ShakeStrength = shakeStrength
             };
         }
     }
@@ -45,11 +30,11 @@ namespace PillFrenzy.Gameplay
         [SerializeField, Range(0f, 180f)] private float m_ShakeRandomness = 90f;
 
         [Header("Profiles")]
-        [SerializeField] private FeedbackProfile m_Correct = FeedbackProfile.Create(0.16f, 0.08f, true);
-        [SerializeField] private FeedbackProfile m_Gold = FeedbackProfile.Create(0.18f, 0.1f, true);
-        [SerializeField] private FeedbackProfile m_Poison = FeedbackProfile.Create(0.28f, 0.22f, true);
-        [SerializeField] private FeedbackProfile m_Complete = FeedbackProfile.Create(0.32f, 0.14f, false);
-        [SerializeField] private FeedbackProfile m_Fail = FeedbackProfile.Create(0.36f, 0.18f, false);
+        [SerializeField] private FeedbackProfile m_Correct = FeedbackProfile.Create(0.16f, 0.08f);
+        [SerializeField] private FeedbackProfile m_Gold = FeedbackProfile.Create(0.18f, 0.1f);
+        [SerializeField] private FeedbackProfile m_Poison = FeedbackProfile.Create(0.28f, 0.22f);
+        [SerializeField] private FeedbackProfile m_Complete = FeedbackProfile.Create(0.32f, 0.14f);
+        [SerializeField] private FeedbackProfile m_Fail = FeedbackProfile.Create(0.36f, 0.18f);
 
         public int ShakeVibrato => m_ShakeVibrato;
         public float ShakeRandomness => m_ShakeRandomness;

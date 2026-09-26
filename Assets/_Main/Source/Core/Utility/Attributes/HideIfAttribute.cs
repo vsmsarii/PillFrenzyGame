@@ -41,14 +41,14 @@ namespace PillFrenzy.Utility
     {
         public override float GetPropertyHeight(SerializedProperty property, GUIContent label)
         {
-            var hideIf = (HideIfAttribute)attribute;
+            HideIfAttribute hideIf = (HideIfAttribute)attribute;
             return CompareOperationExtensions.GetHeight(
                 property, label, hideIf.ConditionField, hideIf.CompareOp, hideIf.CompareValue, invert: true);
         }
 
         public override void OnGUI(Rect position, SerializedProperty property, GUIContent label)
         {
-            var hideIf = (HideIfAttribute)attribute;
+            HideIfAttribute hideIf = (HideIfAttribute)attribute;
             CompareOperationExtensions.Draw(
                 position, property, label, hideIf.ConditionField, hideIf.CompareOp, hideIf.CompareValue, invert: true);
         }

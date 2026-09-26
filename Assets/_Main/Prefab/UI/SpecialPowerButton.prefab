@@ -71,7 +71,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 21300000, guid: 85c4cd1c541314a1c8121d08d12fd045, type: 3}
+  m_Sprite: {fileID: 21300000, guid: 60748a0b70384c72a8655dd4f4d9ac60, type: 3}
   m_Type: 1
   m_PreserveAspect: 0
   m_FillCenter: 1
@@ -134,7 +134,7 @@ MonoBehaviour:
   m_GameObject: {fileID: 7000}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 3a4b5c6d7e8f90123456789abcdef012, type: 3}
+  m_Script: {fileID: 11500000, guid: 78ecaebcb0994caf82c4b735600ef0e6, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PillFrenzy.UI.SpecialPowerButtonView
   m_Button: {fileID: 7004}
@@ -206,7 +206,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 21300000, guid: 85c4cd1c541314a1c8121d08d12fd045, type: 3}
+  m_Sprite: {fileID: 21300000, guid: 60748a0b70384c72a8655dd4f4d9ac60, type: 3}
   m_Type: 1
   m_PreserveAspect: 0
   m_FillCenter: 1

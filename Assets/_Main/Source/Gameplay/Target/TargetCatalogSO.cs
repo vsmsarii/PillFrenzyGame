@@ -18,9 +18,15 @@ namespace PillFrenzy.Gameplay
         }
 
         [SerializeField] private TargetCatalogEntry[] m_Entries;
+
+        [Header("Queue")]
         [SerializeField] private float m_Spacing = 2f;
+        [SerializeField, Min(1)] private int m_VisibleCount = 3;
+        [SerializeField, Min(0f)] private float m_ShiftDuration = 0.35f;
 
         public float Spacing => m_Spacing;
+        public int VisibleCount => m_VisibleCount;
+        public float ShiftDuration => m_ShiftDuration;
 
         public bool TryGetPrefab(ETargetCapacity capacity, out AssetReferenceGameObject prefab)
         {

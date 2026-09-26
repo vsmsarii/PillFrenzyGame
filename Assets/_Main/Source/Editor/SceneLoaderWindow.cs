@@ -1,12 +1,15 @@
+using System.IO;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
 
-namespace Utilities
+namespace PillFrenzy.Editor
 {
-    public class SceneLoaderWindow : EditorWindow
+    public sealed class SceneLoaderWindow : EditorWindow
     {
         private const string TestScenePath = "Assets/_Main/Scene/Test.unity";
+
+        private Vector2 m_Scroll;
 
         [MenuItem("PillFrenzy/Scene Loader")]
         public static void ShowWindow()
@@ -14,31 +17,27 @@ namespace Utilities
             GetWindow<SceneLoaderWindow>("Scene Loader");
         }
 
-        private Vector2 scroll;
-
         private void OnGUI()
         {
-            GUILayout.Label("Scenes ", EditorStyles.boldLabel);
-            GUILayout.Space(5);
+            GUILayout.Label("Scenes", EditorStyles.boldLabel);
+            GUILayout.Space(5f);
 
-            var scenes = EditorBuildSettings.scenes;
-
+            EditorBuildSettingsScene[] scenes = EditorBuildSettings.scenes;
             if (scenes.Length == 0)
             {
                 EditorGUILayout.HelpBox("No scenes in Build Settings.", MessageType.Warning);
             }
             else
             {
-                scroll = EditorGUILayout.BeginScrollView(scroll);
-
-                foreach (var scene in scenes)
+                m_Scroll = EditorGUILayout.BeginScrollView(m_Scroll);
+                for (int i = 0; i < scenes.Length; i++)
                 {
-                    if (!scene.enabled) continue;
+                    if (!scenes[i].enabled)
+                        continue;
 
-                    string sceneName = System.IO.Path.GetFileNameWithoutExtension(scene.path);
-
-                    if (GUILayout.Button(sceneName, GUILayout.Height(28)))
-                        OpenScene(scene.path);
+                    string sceneName = Path.GetFileNameWithoutExtension(scenes[i].path);
+                    if (GUILayout.Button(sceneName, GUILayout.Height(28f)))
+                        OpenScene(scenes[i].path);
                 }
 
                 EditorGUILayout.EndScrollView();
@@ -54,7 +53,7 @@ namespace Utilities
 
         private static void OpenScene(string scenePath)
         {
-            if (!System.IO.File.Exists(scenePath))
+            if (!File.Exists(scenePath))
             {
                 EditorUtility.DisplayDialog("Scene Loader", "Scene not found:\n" + scenePath, "OK");
                 return;

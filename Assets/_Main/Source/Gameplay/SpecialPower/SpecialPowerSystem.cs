@@ -7,7 +7,8 @@ namespace PillFrenzy.Gameplay
     {
         private readonly SpecialPowerCatalogSO m_Catalog;
         private readonly ISaveService m_Save;
-        private readonly LevelSystem m_Level;
+        private readonly ILevelRunState m_Level;
+        private readonly SpawnPacingSystem m_Pacing;
 
         private ESpecialPowerId m_ActiveId;
         private float m_ActiveRemaining;
@@ -16,11 +17,12 @@ namespace PillFrenzy.Gameplay
         public SpecialPowerCatalogSO Catalog => m_Catalog;
         public bool IsAnyActive => m_ActiveId != ESpecialPowerId.None && m_ActiveRemaining > 0f;
 
-        public SpecialPowerSystem(SpecialPowerCatalogSO catalog, ISaveService save, LevelSystem level)
+        public SpecialPowerSystem(SpecialPowerCatalogSO catalog, ISaveService save, ILevelRunState level, SpawnPacingSystem pacing)
         {
             m_Catalog = catalog;
             m_Save = save;
             m_Level = level;
+            m_Pacing = pacing;
         }
 
         public void SyncUnlockGrants()
@@ -38,12 +40,12 @@ namespace PillFrenzy.Gameplay
 
         public int GetCharges(ESpecialPowerId id)
         {
-            return m_Save != null ? m_Save.GetSpecialPowerCharges(id) : 0;
+            return m_Save.GetSpecialPowerCharges(id);
         }
 
         public bool TryActivate(ESpecialPowerId id)
         {
-            if (m_Level == null || m_Level.Phase != ELevelPhase.Playing)
+            if (m_Level.Phase != ELevelPhase.Playing)
                 return false;
 
             if (m_ActiveId != ESpecialPowerId.None && m_ActiveRemaining > 0f)
@@ -65,7 +67,7 @@ namespace PillFrenzy.Gameplay
             m_ActiveId = id;
             m_ActiveRemaining = definition.Duration;
             m_ActiveMultiplier = definition.SpeedMultiplier;
-            m_Level.SetSpeedMultiplier(m_ActiveMultiplier);
+            m_Pacing.SetSpeedMultiplier(m_ActiveMultiplier);
             EB.Analytics.Invoke(new SpecialPowerUseAnalytics(
                 m_Level.LevelIndex,
                 definition.Id,
@@ -109,8 +111,7 @@ namespace PillFrenzy.Gameplay
             m_ActiveId = ESpecialPowerId.None;
             m_ActiveRemaining = 0f;
             m_ActiveMultiplier = 1f;
-            if (m_Level != null)
-                m_Level.SetSpeedMultiplier(1f);
+            m_Pacing.SetSpeedMultiplier(1f);
 
             PublishChanged();
         }

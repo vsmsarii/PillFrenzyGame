@@ -8,12 +8,12 @@ namespace PillFrenzy.Gameplay
     public struct SpecialPowerCatalogEntry
     {
         [SerializeField] private SpecialPowerDefinitionSO m_Definition;
-        [SerializeField] private int m_UnlockLevel;
-        [SerializeField] private int m_InitialCharges;
+        [SerializeField, Min(1)] private int m_UnlockLevel;
+        [SerializeField, Min(0)] private int m_InitialCharges;
 
         public SpecialPowerDefinitionSO Definition => m_Definition;
-        public int UnlockLevel => m_UnlockLevel < 1 ? 1 : m_UnlockLevel;
-        public int InitialCharges => m_InitialCharges < 0 ? 0 : m_InitialCharges;
+        public int UnlockLevel => m_UnlockLevel;
+        public int InitialCharges => m_InitialCharges;
     }
 
     [CreateAssetMenu(fileName = "SpecialPowerCatalog", menuName = "PillFrenzy/Special Power Catalog")]

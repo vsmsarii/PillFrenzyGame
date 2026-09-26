@@ -31,20 +31,22 @@ namespace PillFrenzy.Gameplay
     public readonly struct RunTargetFillChanged
     {
         public readonly TargetFill[] Fills;
+        public readonly int Remaining;
 
-        public RunTargetFillChanged(TargetFill[] fills)
+        public RunTargetFillChanged(TargetFill[] fills, int remaining)
         {
             Fills = fills;
+            Remaining = remaining;
         }
     }
 
     public readonly struct TargetFill
     {
-        public readonly ECapsuleColor Color;
+        public readonly CapsuleColorSO Color;
         public readonly int Occupied;
         public readonly int Capacity;
 
-        public TargetFill(ECapsuleColor color, int occupied, int capacity)
+        public TargetFill(CapsuleColorSO color, int occupied, int capacity)
         {
             Color = color;
             Occupied = occupied;

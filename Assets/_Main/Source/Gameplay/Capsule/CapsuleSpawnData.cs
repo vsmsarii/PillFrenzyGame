@@ -1,15 +1,15 @@
 namespace PillFrenzy.Gameplay
 {
-    public sealed class CapsuleSpawnData
+    public readonly struct CapsuleSpawnData
     {
         public readonly CapsuleDefinitionSO Definition;
-        public readonly float StartDistance;
+        public readonly CapsuleColorSO Color;
         public readonly float Speed;
 
-        public CapsuleSpawnData(CapsuleDefinitionSO definition, float startDistance, float speed)
+        public CapsuleSpawnData(CapsuleDefinitionSO definition, CapsuleColorSO color, float speed)
         {
             Definition = definition;
-            StartDistance = startDistance;
+            Color = color;
             Speed = speed;
         }
     }

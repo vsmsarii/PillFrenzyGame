@@ -9,7 +9,11 @@
         "Unity.Addressables.Editor",
         "Unity.ResourceManager",
         "Unity.TextMeshPro",
-        "UnityEngine.UI"
+        "UnityEngine.UI",
+        "Unity.Splines",
+        "Unity.Splines.Editor",
+        "Unity.Mathematics",
+        "UniTask"
     ],
     "includePlatforms": [
         "Editor"

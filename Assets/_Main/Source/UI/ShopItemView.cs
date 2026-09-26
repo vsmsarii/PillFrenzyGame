@@ -23,26 +23,14 @@ namespace PillFrenzy.UI
             m_ProductKey = entry.Key;
             m_Purchase = purchase;
 
-            if (m_Icon != null)
-            {
-                m_Icon.sprite = entry.Icon;
-                m_Icon.enabled = entry.Icon != null;
-            }
+            m_Icon.sprite = entry.Icon;
+            m_Icon.enabled = entry.Icon != null;
+            m_Title.text = entry.DisplayName;
+            m_Description.text = entry.Description;
+            m_Price.text = entry.PriceLabel;
 
-            if (m_Title != null)
-                m_Title.text = entry.DisplayName;
-
-            if (m_Description != null)
-                m_Description.text = entry.Description;
-
-            if (m_Price != null)
-                m_Price.text = entry.PriceLabel;
-
-            if (m_BuyButton != null)
-            {
-                m_BuyButton.onClick.RemoveListener(OnBuyClicked);
-                m_BuyButton.onClick.AddListener(OnBuyClicked);
-            }
+            m_BuyButton.onClick.RemoveListener(OnBuyClicked);
+            m_BuyButton.onClick.AddListener(OnBuyClicked);
         }
 
         private void OnBuyClicked()
@@ -52,16 +40,9 @@ namespace PillFrenzy.UI
 
         private async UniTaskVoid BuyAsync()
         {
-            if (m_Purchase == null || string.IsNullOrEmpty(m_ProductKey))
-                return;
-
-            if (m_BuyButton != null)
-                m_BuyButton.interactable = false;
-
+            m_BuyButton.interactable = false;
             await m_Purchase.Invoke(m_ProductKey);
-
-            if (m_BuyButton != null)
-                m_BuyButton.interactable = true;
+            m_BuyButton.interactable = true;
         }
     }
 }

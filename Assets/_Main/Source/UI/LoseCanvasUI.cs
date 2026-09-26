@@ -17,10 +17,8 @@ namespace PillFrenzy.UI
 
         private void Awake()
         {
-            if (m_RetryButton != null)
-                m_RetryButton.onClick.AddListener(OnRetryClicked);
-            if (m_MenuButton != null)
-                m_MenuButton.onClick.AddListener(OnMenuClicked);
+            m_RetryButton.onClick.AddListener(OnRetryClicked);
+            m_MenuButton.onClick.AddListener(OnMenuClicked);
         }
 
         public void Show(int score, int bestCombo, Action retry, Action menu)
@@ -28,41 +26,25 @@ namespace PillFrenzy.UI
             m_Retry = retry;
             m_Menu = menu;
 
-            if (m_Title != null)
-                m_Title.text = "FAIL";
-            if (m_Detail != null)
-                m_Detail.text = "Score " + score + "   Best combo x" + bestCombo;
-
-            if (m_RetryButton != null)
-            {
-                m_RetryButton.interactable = retry != null;
-                TMP_Text retryLabel = m_RetryButton.GetComponentInChildren<TMP_Text>();
-                if (retryLabel != null)
-                    retryLabel.text = "Retry";
-            }
-
-            if (m_MenuButton != null)
-                m_MenuButton.gameObject.SetActive(true);
+            m_Title.text = "FAIL";
+            m_Detail.text = "Score " + score + "   Best combo x" + bestCombo;
+            m_RetryButton.interactable = retry != null;
+            m_RetryButton.GetComponentInChildren<TMP_Text>().text = "Retry";
+            m_MenuButton.gameObject.SetActive(true);
         }
 
         private void OnRetryClicked()
         {
-            if (m_Retry == null)
-                return;
-
             Action retry = m_Retry;
             m_Retry = null;
-            retry.Invoke();
+            retry?.Invoke();
         }
 
         private void OnMenuClicked()
         {
-            if (m_Menu == null)
-                return;
-
             Action menu = m_Menu;
             m_Menu = null;
-            menu.Invoke();
+            menu?.Invoke();
         }
     }
 }

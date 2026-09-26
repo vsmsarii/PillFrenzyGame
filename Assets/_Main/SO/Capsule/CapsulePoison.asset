@@ -9,10 +9,10 @@ MonoBehaviour:
   m_GameObject: {fileID: 0}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 6a1c3e5f70824b9d8e0a1c2d3f4b5a67, type: 3}
+  m_Script: {fileID: 11500000, guid: 1173f286631d4a8889ec0c831ac77fd0, type: 3}
   m_Name: CapsulePoison
   m_EditorClassIdentifier: 
   m_Kind: 2
-  m_Color: 5
+  m_Color: {fileID: 11400000, guid: fe6bfee55226a433a88cbd60ba7c817a, type: 2}
   m_PrefabKey: prefab.capsule
   m_FlyDuration: 0.35

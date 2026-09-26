@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 
 namespace PillFrenzy.Core
 {
@@ -11,8 +12,8 @@ namespace PillFrenzy.Core
         public int TotalScore;
         public int TotalAttempts;
         public int TotalCompletionSeconds;
-        public LevelRecordData[] LevelScores;
-        public SpecialPowerSaveEntry[] SpecialPowers;
+        public List<LevelRecordData> LevelScores = new();
+        public List<SpecialPowerSaveEntry> SpecialPowers = new();
         public long ImmortalUntilUnixUtc;
         public int Hearts;
         public bool HeartsInitialized;

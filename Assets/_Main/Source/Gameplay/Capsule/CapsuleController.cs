@@ -8,6 +8,7 @@ namespace PillFrenzy.Gameplay
     public sealed class CapsuleController : MonoBehaviour
     {
         private CapsuleDefinitionSO m_Definition;
+        private CapsuleColorSO m_Color;
         private CapsuleView m_View;
         private IConveyorPath m_Path;
         private float m_Speed;
@@ -17,6 +18,7 @@ namespace PillFrenzy.Gameplay
         [SerializeField] private float m_HeightOffset = 1.5f;
 
         public CapsuleDefinitionSO Definition => m_Definition;
+        public CapsuleColorSO Color => m_Color;
         public ECapsuleState State => m_State;
         public bool HasReachedEnd =>
             m_State == ECapsuleState.OnPath
@@ -28,27 +30,18 @@ namespace PillFrenzy.Gameplay
         {
             KillFlight();
             m_Definition = data.Definition;
+            m_Color = data.Color;
             m_Path = path;
             m_Speed = data.Speed;
-            m_Distance = data.StartDistance;
+            m_Distance = 0f;
             m_State = ECapsuleState.OnPath;
             SetColliderEnabled(true);
-            transform.position = m_Path.GetPoint(m_Distance);
-        }
+            ApplyPathPose();
 
-        public void ApplyPalette(ColorCatalogSO table)
-        {
             if (m_View == null)
                 m_View = GetComponent<CapsuleView>();
 
-            if (m_View == null)
-                m_View = gameObject.AddComponent<CapsuleView>();
-
-            Color color = table != null && m_Definition != null
-                ? table.Get(m_Definition.Color)
-                : Color.white;
-
-            m_View.Initialize(color);
+            m_View.Initialize(m_Color.Color);
         }
 
         public void Tick(float deltaTime)
@@ -57,7 +50,7 @@ namespace PillFrenzy.Gameplay
                 return;
 
             m_Distance += m_Speed * deltaTime;
-            transform.position = m_Path.GetPoint(m_Distance);
+            ApplyPathPose();
         }
 
         public void SetPathSpeed(float speed)
@@ -70,16 +63,16 @@ namespace PillFrenzy.Gameplay
             m_State = ECapsuleState.InFlight;
         }
 
-        public void AttachToSlot(Transform slot)
+        public void AttachToSlot(Transform slot, float seatOffset)
         {
             KillFlight();
             m_State = ECapsuleState.Seated;
             transform.SetParent(slot, true);
-            transform.localRotation = Quaternion.identity;
+            transform.SetPositionAndRotation(slot.position + Vector3.up * seatOffset, slot.rotation);
             SetColliderEnabled(false);
         }
 
-        public async UniTask FlyTo(Vector3 destination, CancellationToken cancellationToken)
+        public async UniTask FlyTo(Vector3 destination, Quaternion rotation, CancellationToken cancellationToken)
         {
             KillFlight();
             float duration = m_Definition != null ? m_Definition.FlyDuration : 0.35f;
@@ -90,7 +83,10 @@ namespace PillFrenzy.Gameplay
             Vector3 midPoint = (startPoint + destination) / 2f + Vector3.up * m_HeightOffset;
             Vector3[] path = { startPoint, midPoint, destination };
 
-            m_FlyTween = transform.DOPath(path, duration, PathType.CatmullRom).SetEase(Ease.OutQuad).SetLink(gameObject)
+            m_FlyTween = DOTween.Sequence()
+            .Join(transform.DOPath(path, duration, PathType.CatmullRom).SetEase(Ease.OutQuad))
+            .Join(transform.DORotateQuaternion(rotation, duration).SetEase(Ease.OutQuad))
+            .SetLink(gameObject)
             .OnComplete(() =>
             {
                 completed = true;
@@ -117,6 +113,12 @@ namespace PillFrenzy.Gameplay
                 m_FlyTween.Kill();
 
             m_FlyTween = null;
+        }
+
+        private void ApplyPathPose()
+        {
+            Pose pose = m_Path.GetPose(m_Distance);
+            transform.SetPositionAndRotation(pose.position, pose.rotation);
         }
 
         private void SetColliderEnabled(bool enabled)

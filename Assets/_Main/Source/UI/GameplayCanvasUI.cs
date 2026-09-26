@@ -1,3 +1,5 @@
+using System;
+using System.Text;
 using PillFrenzy.Core;
 using PillFrenzy.Gameplay;
 using TMPro;
@@ -17,17 +19,15 @@ namespace PillFrenzy.UI
         [SerializeField] private Button m_SettingsButton;
         [SerializeField] private SpecialPowerBarUI m_PowerBar;
 
-        private readonly System.Text.StringBuilder m_FillBuilder = new System.Text.StringBuilder(64);
+        private readonly StringBuilder m_FillBuilder = new StringBuilder(64);
 
         private ISaveService m_Save;
-        private System.Action m_Settings;
-        private long m_ShownImmortalSeconds = long.MinValue;
-        private bool m_ShownImmortalActive;
+        private Action m_Settings;
+        private long m_LastRefreshSecond = -1;
 
         private void Awake()
         {
-            if (m_SettingsButton != null)
-                m_SettingsButton.onClick.AddListener(OnSettingsClicked);
+            m_SettingsButton.onClick.AddListener(OnSettingsClicked);
         }
 
         private void OnEnable()
@@ -44,99 +44,49 @@ namespace PillFrenzy.UI
 
         private void Update()
         {
-            RefreshImmortal();
+            if (m_Save == null)
+                return;
+
+            long now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+            if (now == m_LastRefreshSecond)
+                return;
+
+            m_LastRefreshSecond = now;
+            UiText.ShowImmortal(m_Immortal, m_Save.ImmortalRemainingSeconds);
         }
 
         public void BindLevel(int levelNumber)
         {
-            if (m_Level == null)
-                return;
-
             m_Level.text = "Level " + levelNumber;
         }
 
         public void BindPowers(SpecialPowerSystem powers, ISaveService save)
         {
             m_Save = save;
-            m_ShownImmortalSeconds = long.MinValue;
-            m_ShownImmortalActive = false;
-            if (m_PowerBar == null)
-                return;
-
             m_PowerBar.Bind(powers, save);
-            RefreshImmortal();
+            UiText.ShowImmortal(m_Immortal, m_Save.ImmortalRemainingSeconds);
         }
 
-        public void BindSettings(System.Action settings)
+        public void BindSettings(Action settings)
         {
             m_Settings = settings;
-            if (m_SettingsButton == null)
-                return;
-
             m_SettingsButton.gameObject.SetActive(settings != null);
         }
 
         private void OnSettingsClicked()
         {
-            if (m_Settings != null)
-                m_Settings.Invoke();
-        }
-
-        private void RefreshImmortal()
-        {
-            if (m_Immortal == null || m_Save == null)
-                return;
-
-            long remaining = m_Save.ImmortalRemainingSeconds;
-            bool active = remaining > 0;
-            if (!active)
-            {
-                if (m_ShownImmortalActive)
-                {
-                    m_ShownImmortalActive = false;
-                    m_ShownImmortalSeconds = long.MinValue;
-                    m_Immortal.gameObject.SetActive(false);
-                }
-
-                return;
-            }
-
-            if (!m_ShownImmortalActive)
-            {
-                m_ShownImmortalActive = true;
-                m_Immortal.gameObject.SetActive(true);
-            }
-
-            if (remaining == m_ShownImmortalSeconds)
-                return;
-
-            m_ShownImmortalSeconds = remaining;
-            long minutes = remaining / 60;
-            long seconds = remaining % 60;
-            m_Immortal.text = "Immortal " + minutes.ToString("00") + ":" + seconds.ToString("00");
+            m_Settings?.Invoke();
         }
 
         private void OnHudChanged(RunHudChanged evt)
         {
-            if (m_Score != null)
-                m_Score.text = "Score " + evt.Score;
-            if (m_Combo != null)
-                m_Combo.text = "Combo x" + evt.Combo;
-            if (m_Health != null)
-                m_Health.text = "HP " + evt.Health;
+            m_Score.text = "Score " + evt.Score;
+            m_Combo.text = "Combo x" + evt.Combo;
+            m_Health.text = "HP " + evt.Health;
         }
 
         private void OnFillChanged(RunTargetFillChanged evt)
         {
-            if (m_Fill == null)
-                return;
-
-            if (evt.Fills == null || evt.Fills.Length == 0)
-            {
-                m_Fill.text = string.Empty;
-                return;
-            }
-
             m_FillBuilder.Clear();
             for (int i = 0; i < evt.Fills.Length; i++)
             {
@@ -144,12 +94,11 @@ namespace PillFrenzy.UI
                 if (i > 0)
                     m_FillBuilder.Append("   ");
 
-                m_FillBuilder.Append(fill.Color);
-                m_FillBuilder.Append(' ');
-                m_FillBuilder.Append(fill.Occupied);
-                m_FillBuilder.Append('/');
-                m_FillBuilder.Append(fill.Capacity);
+                m_FillBuilder.Append(fill.Color.name).Append(' ').Append(fill.Occupied).Append('/').Append(fill.Capacity);
             }
+
+            if (evt.Remaining > 0)
+                m_FillBuilder.Append("   +").Append(evt.Remaining);
 
             m_Fill.text = m_FillBuilder.ToString();
         }

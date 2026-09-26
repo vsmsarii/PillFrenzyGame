@@ -1057,7 +1057,7 @@ MonoBehaviour:
   m_GameObject: {fileID: 8227275726301779278}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 9f3b6d7e80125549b0d5f6a7c8e90125, type: 3}
+  m_Script: {fileID: 11500000, guid: 6c7de9a801f847e8b1ae725159691b2c, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PillFrenzy.UI.LoseCanvasUI
   m_Title: {fileID: 5477496871590264770}

@@ -31,8 +31,7 @@ namespace PillFrenzy.Core
 
         private async UniTask LoadInternal(string sceneName, CancellationToken cancellationToken)
         {
-            if (m_Loading != null)
-                await m_Loading.ShowAsync(cancellationToken);
+            await m_Loading.ShowAsync(cancellationToken);
 
             AsyncOperation operation = SceneManager.LoadSceneAsync(sceneName, LoadSceneMode.Single);
             if (operation == null)
@@ -44,13 +43,11 @@ namespace PillFrenzy.Core
             while (!operation.isDone)
             {
                 float sceneProgress = Mathf.Clamp01(operation.progress / 0.9f);
-                if (m_Loading != null)
-                    m_Loading.SetProgress(sceneProgress * SceneProgressWeight);
+                m_Loading.SetProgress(sceneProgress * SceneProgressWeight);
                 await UniTask.Yield(cancellationToken);
             }
 
-            if (m_Loading != null)
-                m_Loading.SetProgress(SceneProgressWeight);
+            m_Loading.SetProgress(SceneProgressWeight);
         }
 
         private static bool TryGetSceneName(ESceneName scene, out string sceneName)

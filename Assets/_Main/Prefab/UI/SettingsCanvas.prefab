@@ -117,7 +117,7 @@ MonoBehaviour:
   m_GameObject: {fileID: 100001}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 505e7711050000000000000000000002, type: 3}
+  m_Script: {fileID: 11500000, guid: db27d84f87eb4fc0ad79c875f69bd4ac, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PillFrenzy.UI.SettingsCanvasUI
   m_CloseButton: {fileID: 1770183034803354482}

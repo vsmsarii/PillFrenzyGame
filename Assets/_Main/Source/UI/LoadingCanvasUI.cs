@@ -30,11 +30,8 @@ namespace PillFrenzy.UI
         private void Apply(float progress)
         {
             float clamped = Mathf.Clamp01(progress);
-            if (m_Fill != null)
-                m_Fill.fillAmount = clamped;
-
-            if (m_Percent != null)
-                m_Percent.text = Mathf.RoundToInt(clamped * 100f) + "%";
+            m_Fill.fillAmount = clamped;
+            m_Percent.text = Mathf.RoundToInt(clamped * 100f) + "%";
         }
     }
 }

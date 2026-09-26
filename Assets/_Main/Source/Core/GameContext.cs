@@ -36,6 +36,7 @@ namespace PillFrenzy.Core
 
             m_Cts.Dispose();
             Services.Dispose();
+            EB.ClearAll();
         }
     }
 }

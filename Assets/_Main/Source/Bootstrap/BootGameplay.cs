@@ -1,4 +1,3 @@
-using System.Threading;
 using Cysharp.Threading.Tasks;
 using PillFrenzy.Core;
 using PillFrenzy.Gameplay;
@@ -10,17 +9,8 @@ namespace PillFrenzy.Bootstrap
     public sealed class BootGameplay : MonoBehaviour
     {
         private GameContext m_Context;
-        private IAssetProvider m_Assets;
-        private CancellationTokenSource m_Cts;
-        private GameObject m_LayoutInstance;
-        private CapsuleSystem m_CapsuleSystem;
-        private SpawnSystem m_SpawnSystem;
-        private LevelSystem m_LevelSystem;
-        private TargetSystem m_TargetSystem;
-        private SpecialPowerSystem m_PowerSystem;
-        private GameplayFeedback m_Feedback;
+        private GameplaySession m_Session;
         private int m_LevelIndex;
-        private LevelDefinitionSO m_Definition;
         private bool m_ReturnToMenu;
         private RunEnded m_LastRunEnded;
         private bool m_HasRunEnded;
@@ -35,7 +25,6 @@ namespace PillFrenzy.Bootstrap
             }
 
             m_Context = GameRunner.Instance.Context;
-            m_Cts = new CancellationTokenSource();
         }
 
         private void Start()
@@ -48,7 +37,6 @@ namespace PillFrenzy.Bootstrap
 
         private async UniTaskVoid RunAsync()
         {
-            m_Assets = m_Context.Services.Get<IAssetProvider>();
             ISaveService save = m_Context.Services.Get<ISaveService>();
 
             m_LevelIndex = m_Context.GameplayLevelIndex >= 0 ? m_Context.GameplayLevelIndex : save.CurrentLevelIndex;
@@ -57,115 +45,15 @@ namespace PillFrenzy.Bootstrap
             if (m_LevelIndex < 0)
                 m_LevelIndex = 0;
 
-            UIPanels.SetLoadingProgress(0.75f);
-            ColorCatalogSO colorTable = await m_Assets.LoadAsset<ColorCatalogSO>(AddressableKeys.ColorTable, m_Cts.Token);
-            if (m_Cts == null)
+            m_Session = new GameplaySession(m_Context);
+            if (!await m_Session.LoadAsync(m_LevelIndex))
                 return;
 
-            UIPanels.SetLoadingProgress(0.8f);
-            TargetCatalogSO targetCatalog = await m_Assets.LoadAsset<TargetCatalogSO>(AddressableKeys.TargetCatalog, m_Cts.Token);
-            if (m_Cts == null)
-                return;
-
-            UIPanels.SetLoadingProgress(0.85f);
-            if (m_Context.LevelCatalog == null || !m_Context.LevelCatalog.TryGetDefinitionKey(m_LevelIndex, out string definitionKey))
-            {
-                Logger.Error("Level definition key missing for index " + m_LevelIndex + ".");
-                UIPanels.HideLoading();
-                return;
-            }
-
-            LevelDefinitionSO definition = await m_Assets.LoadAsset<LevelDefinitionSO>(definitionKey, m_Cts.Token);
-            if (m_Cts == null)
-                return;
-
-            if (definition == null)
-            {
-                Logger.Error("Level definition missing for index " + m_LevelIndex + ".");
-                UIPanels.HideLoading();
-                return;
-            }
-
-            UIPanels.SetLoadingProgress(0.9f);
-            if (!definition.TryGetLayoutKey(out string layoutKey)
-                && (m_Context.LevelCatalog == null || !m_Context.LevelCatalog.TryGetDefaultLayoutKey(out layoutKey)))
-            {
-                Logger.Error("Level layout missing for index " + m_LevelIndex + ".");
-                UIPanels.HideLoading();
-                return;
-            }
-
-            m_LayoutInstance = await m_Assets.Instantiate(layoutKey, null, m_Cts.Token);
-            if (m_Cts == null || m_LayoutInstance == null)
-                return;
-
-            LevelLayout layout = m_LayoutInstance.GetComponent<LevelLayout>();
-            if (layout == null || layout.Path == null)
-            {
-                Logger.Error("Level prefab is missing LevelLayout or path.");
-                UIPanels.HideLoading();
-                return;
-            }
-
-            Camera camera = layout.Camera != null ? layout.Camera : Camera.main;
-            if (camera == null)
-            {
-                Logger.Error("No camera for tap raycast.");
-                UIPanels.HideLoading();
-                return;
-            }
-
-            IInputService input = m_Context.Services.Get<IInputService>();
-            IAudioService audio = m_Context.Services.Get<IAudioService>();
-            audio.PlayMusic(EAudioName.MusicGameplay);
-            IGameObjectPool pool = m_Context.Services.Get<IGameObjectPool>();
-
-            FeedbackSettingsSO feedbackSettings = await m_Assets.LoadAsset<FeedbackSettingsSO>(AddressableKeys.FeedbackSettings, m_Cts.Token);
-            if (m_Cts == null)
-                return;
-
-            Transform shakeTarget = layout.ShakeHolder != null ? layout.ShakeHolder : camera.transform;
-            m_Feedback = new GameplayFeedback(pool, audio, shakeTarget, feedbackSettings, m_Cts.Token);
-            CapsuleFactory factory = new CapsuleFactory(pool, layout.CapsuleRoot);
-            TargetFactory targetFactory = new TargetFactory(pool, targetCatalog);
-            m_TargetSystem = new TargetSystem(colorTable, targetFactory);
-            UIPanels.SetLoadingProgress(0.95f);
-            await m_TargetSystem.Bind(definition, layout, m_Cts.Token);
-            if (m_Cts == null)
-                return;
-
-            await pool.Warmup(AddressableKeys.CapsulePrefab, definition.MaxActive + 2, m_Cts.Token);
-            if (m_Cts == null)
-                return;
-
-            m_CapsuleSystem = new CapsuleSystem(
-                input,
-                m_TargetSystem,
-                camera,
-                m_Cts.Token,
-                colorTable,
-                m_Feedback,
-                layout.CapsuleMask);
-            m_SpawnSystem = new SpawnSystem(factory, m_CapsuleSystem);
-            m_LevelSystem = new LevelSystem(m_SpawnSystem, m_CapsuleSystem, layout.Path, save, m_LevelIndex, m_Cts.Token, m_Feedback);
-            m_CapsuleSystem.Bind(m_SpawnSystem, m_LevelSystem);
-
-            SpecialPowerCatalogSO powerCatalog = await m_Assets.LoadAsset<SpecialPowerCatalogSO>(AddressableKeys.SpecialPowerCatalog, m_Cts.Token);
-            if (m_Cts == null)
-                return;
-
-            m_PowerSystem = new SpecialPowerSystem(powerCatalog, save, m_LevelSystem);
-            m_PowerSystem.SyncUnlockGrants();
-            m_Definition = definition;
-            m_ReturnToMenu = definition.ReturnToMenu;
+            m_ReturnToMenu = m_Session.Definition.ReturnToMenu;
 
             EB.Presentation.Add<RunEnded>(OnRunEnded);
             EB.Presentation.Add<UIPanelOpened>(OnPanelOpened);
             EB.Presentation.Add<ApplicationPauseChanged>(OnApplicationPauseChanged);
-            m_Context.GameLoop.Register(m_CapsuleSystem);
-            m_Context.GameLoop.Register(m_LevelSystem);
-            m_Context.GameLoop.Register(m_PowerSystem);
-            UIPanels.SetLoadingProgress(1f);
             EB.Presentation.Invoke(new OpenUIPanelEvent(EUIPanel.Gameplay, 0));
         }
 
@@ -184,20 +72,14 @@ namespace PillFrenzy.Bootstrap
 
             if (opened.Panel == EUIPanel.Gameplay)
             {
-                m_TargetSystem.PublishFill();
-                if (m_Definition != null)
-                {
-                    LevelDefinitionSO definition = m_Definition;
-                    m_Definition = null;
-                    m_LevelSystem.StartRun(definition);
-                }
+                m_Session.BeginRun();
 
                 GameplayCanvasUI gameplayUi = opened.Instance.GetComponent<GameplayCanvasUI>();
                 if (gameplayUi != null)
                 {
                     gameplayUi.BindLevel(m_LevelIndex + 1);
-                    if (m_PowerSystem != null)
-                        gameplayUi.BindPowers(m_PowerSystem, m_Context.Services.Get<ISaveService>());
+                    if (m_Session.Powers != null)
+                        gameplayUi.BindPowers(m_Session.Powers, m_Context.Services.Get<ISaveService>());
                     gameplayUi.BindSettings(OpenSettings);
                 }
 
@@ -266,9 +148,7 @@ namespace PillFrenzy.Bootstrap
                 return;
 
             m_SettingsOpen = true;
-            if (m_LevelSystem != null)
-                m_LevelSystem.Pause();
-
+            m_Session?.Pause();
             EB.Presentation.Invoke(new OpenUIPanelEvent(EUIPanel.Settings, 1, additive: true));
         }
 
@@ -276,18 +156,17 @@ namespace PillFrenzy.Bootstrap
         {
             m_SettingsOpen = false;
             UIPanels.Close(EUIPanel.Settings);
-            if (m_LevelSystem != null)
-                m_LevelSystem.Resume();
+            m_Session?.Resume();
         }
 
         private void OnApplicationPauseChanged(ApplicationPauseChanged evt)
         {
-            if (m_LevelSystem == null || m_HasRunEnded)
+            if (m_Session == null || !m_Session.IsLoaded || m_HasRunEnded)
                 return;
 
             if (evt.Paused)
             {
-                m_LevelSystem.Pause();
+                m_Session.Pause();
                 return;
             }
 
@@ -334,77 +213,16 @@ namespace PillFrenzy.Bootstrap
             await scenes.Load(ESceneName.Menu, m_Context.CancellationToken);
         }
 
-        private void OnDisable()
-        {
-            Shutdown();
-        }
-
         private void OnDestroy()
-        {
-            Shutdown();
-        }
-
-        private void Shutdown()
         {
             EB.Presentation.Remove<RunEnded>(OnRunEnded);
             EB.Presentation.Remove<UIPanelOpened>(OnPanelOpened);
             EB.Presentation.Remove<ApplicationPauseChanged>(OnApplicationPauseChanged);
             EB.Presentation.Invoke(new CloseAllUIPanelsEvent(1));
 
-            if (m_Cts != null)
-            {
-                m_Cts.Cancel();
-                m_Cts.Dispose();
-                m_Cts = null;
-            }
-
             m_SettingsOpen = false;
-
-            if (m_PowerSystem != null)
-            {
-                m_Context.GameLoop.Unregister(m_PowerSystem);
-                m_PowerSystem.Shutdown();
-                m_PowerSystem = null;
-            }
-
-            if (m_SpawnSystem != null)
-            {
-                m_SpawnSystem.DespawnSeated(m_TargetSystem);
-                m_SpawnSystem.DespawnAll();
-                m_SpawnSystem = null;
-            }
-
-            if (m_CapsuleSystem != null)
-            {
-                m_Context.GameLoop.Unregister(m_CapsuleSystem);
-                m_CapsuleSystem.Shutdown();
-                m_CapsuleSystem = null;
-            }
-
-            if (m_TargetSystem != null)
-            {
-                m_TargetSystem.Shutdown();
-                m_TargetSystem = null;
-            }
-
-            if (m_LevelSystem != null)
-            {
-                m_Context.GameLoop.Unregister(m_LevelSystem);
-                m_LevelSystem.Shutdown();
-                m_LevelSystem = null;
-            }
-
-            if (m_Feedback != null)
-            {
-                m_Feedback.Shutdown();
-                m_Feedback = null;
-            }
-
-            if (m_Assets != null && m_LayoutInstance != null)
-            {
-                m_Assets.ReleaseInstance(m_LayoutInstance);
-                m_LayoutInstance = null;
-            }
+            m_Session?.Shutdown();
+            m_Session = null;
         }
     }
 }

@@ -1,5 +1,4 @@
 using System;
-using Cysharp.Threading.Tasks;
 using PillFrenzy.Core;
 using PillFrenzy.Gameplay;
 using UnityEngine;
@@ -21,8 +20,7 @@ namespace PillFrenzy.UI
 
         private void Awake()
         {
-            if (m_CloseButton != null)
-                m_CloseButton.onClick.AddListener(OnCloseClicked);
+            m_CloseButton.onClick.AddListener(OnCloseClicked);
         }
 
         public void Bind(
@@ -42,12 +40,6 @@ namespace PillFrenzy.UI
 
         private void Rebuild()
         {
-            if (m_Content == null)
-                return;
-
-            if (m_ItemPrefab == null)
-                return;
-
             for (int i = m_Content.childCount - 1; i >= 0; i--)
                 Destroy(m_Content.GetChild(i).gameObject);
 
@@ -61,7 +53,7 @@ namespace PillFrenzy.UI
                     continue;
 
                 ShopItemView item = Instantiate(m_ItemPrefab, m_Content);
-                item.Bind(entry, PurchaseAsync);
+                item.Bind(entry, key => m_Iap.PurchaseAsync(key));
             }
         }
 
@@ -70,29 +62,15 @@ namespace PillFrenzy.UI
             if (entry.RewardType != EIAPRewardType.SpecialPowerCharges)
                 return true;
 
-            if (m_Powers == null || m_Save == null)
-                return false;
-
-            if (!m_Powers.TryGet(entry.PowerId, out SpecialPowerCatalogEntry power))
+            if (m_Powers == null || !m_Powers.TryGet(entry.PowerId, out SpecialPowerCatalogEntry power))
                 return false;
 
             return m_Save.CurrentLevelNumber >= power.UnlockLevel;
         }
 
-        private async UniTask<bool> PurchaseAsync(string key)
-        {
-            if (m_Iap == null)
-                return false;
-
-            return await m_Iap.PurchaseAsync(key);
-        }
-
         private void OnCloseClicked()
         {
-            if (m_Close != null)
-                m_Close.Invoke();
-            else
-                UIPanels.Close(EUIPanel.Shop);
+            m_Close.Invoke();
         }
     }
 }

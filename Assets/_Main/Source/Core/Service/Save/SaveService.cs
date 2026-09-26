@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using UnityEngine;
 
@@ -17,6 +18,7 @@ namespace PillFrenzy.Core
         private int m_MaxHearts;
         private float m_HeartRefillMinutes;
         private bool m_Dirty;
+        private bool m_HeartsConfigured;
 
         public static string FilePath => Path.Combine(Application.persistentDataPath, SaveFileName);
         public static string BackupPath => FilePath + ".bak";
@@ -47,7 +49,7 @@ namespace PillFrenzy.Core
         public int CurrentLevelIndex => m_Data.CurrentLevelIndex;
         public int CurrentLevelNumber => m_Data.CurrentLevelIndex + 1;
         public bool HasCompletedFirstLevel => m_Data.FirstLevelCompleted;
-        public int MaxHearts => m_MaxHearts < 0 ? 0 : m_MaxHearts;
+        public int MaxHearts => m_MaxHearts;
         public int Hearts => m_Data.Hearts < 0 ? 0 : m_Data.Hearts;
 
         public long SecondsUntilNextHeart
@@ -76,17 +78,8 @@ namespace PillFrenzy.Core
 
         public int GetLevelScore(int levelIndex)
         {
-            LevelRecordData[] scores = m_Data.LevelScores;
-            if (scores == null)
-                return 0;
-
-            for (int i = 0; i < scores.Length; i++)
-            {
-                if (scores[i].LevelIndex == levelIndex)
-                    return scores[i].Score;
-            }
-
-            return 0;
+            LevelRecordData record = FindLevelRecord(levelIndex);
+            return record != null ? record.Score : 0;
         }
 
         public int GetTotalScore() => m_Data.TotalScore;
@@ -176,8 +169,9 @@ namespace PillFrenzy.Core
 
         public void ConfigureHearts(int maxHeartCount, float refillMinutes)
         {
-            m_MaxHearts = maxHeartCount < 0 ? 0 : maxHeartCount;
-            m_HeartRefillMinutes = refillMinutes < 0f ? 0f : refillMinutes;
+            m_MaxHearts = Math.Max(0, maxHeartCount);
+            m_HeartRefillMinutes = Math.Max(0f, refillMinutes);
+            m_HeartsConfigured = true;
 
             if (!m_Data.HeartsInitialized)
             {
@@ -187,12 +181,18 @@ namespace PillFrenzy.Core
                 MarkDirty();
             }
 
+            if (m_Data.Hearts < m_MaxHearts && m_Data.NextHeartUnixUtc <= 0 && HeartRefillSeconds > 0)
+            {
+                m_Data.NextHeartUnixUtc = DateTimeOffset.UtcNow.ToUnixTimeSeconds() + HeartRefillSeconds;
+                MarkDirty();
+            }
+
             RefreshHearts();
         }
 
         public void RefreshHearts()
         {
-            if (m_Data == null || !m_Data.HeartsInitialized)
+            if (!m_HeartsConfigured || m_Data == null || !m_Data.HeartsInitialized)
                 return;
 
             if (m_Data.Hearts >= m_MaxHearts)
@@ -321,45 +321,18 @@ namespace PillFrenzy.Core
 
         private SpecialPowerSaveEntry FindPower(ESpecialPowerId id)
         {
-            SpecialPowerSaveEntry[] powers = m_Data.SpecialPowers;
-            if (powers == null)
-                return null;
-
-            int powerId = (int)id;
-            for (int i = 0; i < powers.Length; i++)
-            {
-                if (powers[i].PowerId == powerId)
-                    return powers[i];
-            }
-
-            return null;
+            return m_Data.SpecialPowers.Find(entry => entry.PowerId == (int)id);
         }
 
         private SpecialPowerSaveEntry FindOrCreatePower(ESpecialPowerId id)
         {
-            SpecialPowerSaveEntry existing = FindPower(id);
-            if (existing != null)
-                return existing;
+            SpecialPowerSaveEntry entry = FindPower(id);
+            if (entry != null)
+                return entry;
 
-            SpecialPowerSaveEntry created = new SpecialPowerSaveEntry
-            {
-                PowerId = (int)id,
-                Charges = 0,
-                InitialGranted = false
-            };
-
-            SpecialPowerSaveEntry[] powers = m_Data.SpecialPowers;
-            if (powers == null || powers.Length == 0)
-            {
-                m_Data.SpecialPowers = new[] { created };
-                return created;
-            }
-
-            SpecialPowerSaveEntry[] expanded = new SpecialPowerSaveEntry[powers.Length + 1];
-            Array.Copy(powers, expanded, powers.Length);
-            expanded[powers.Length] = created;
-            m_Data.SpecialPowers = expanded;
-            return created;
+            entry = new SpecialPowerSaveEntry { PowerId = (int)id };
+            m_Data.SpecialPowers.Add(entry);
+            return entry;
         }
 
         private void UpsertScore(int levelIndex, int score, int completionSeconds)
@@ -373,45 +346,18 @@ namespace PillFrenzy.Core
 
         private LevelRecordData FindLevelRecord(int levelIndex)
         {
-            LevelRecordData[] scores = m_Data.LevelScores;
-            if (scores == null)
-                return null;
-
-            for (int i = 0; i < scores.Length; i++)
-            {
-                if (scores[i].LevelIndex == levelIndex)
-                    return scores[i];
-            }
-
-            return null;
+            return m_Data.LevelScores.Find(record => record.LevelIndex == levelIndex);
         }
 
         private LevelRecordData FindOrCreateLevelRecord(int levelIndex)
         {
-            LevelRecordData existing = FindLevelRecord(levelIndex);
-            if (existing != null)
-                return existing;
+            LevelRecordData record = FindLevelRecord(levelIndex);
+            if (record != null)
+                return record;
 
-            LevelRecordData created = new LevelRecordData
-            {
-                LevelIndex = levelIndex,
-                Score = 0,
-                Attempts = 0,
-                CompletionSeconds = 0
-            };
-
-            LevelRecordData[] scores = m_Data.LevelScores;
-            if (scores == null || scores.Length == 0)
-            {
-                m_Data.LevelScores = new[] { created };
-                return created;
-            }
-
-            LevelRecordData[] expanded = new LevelRecordData[scores.Length + 1];
-            Array.Copy(scores, expanded, scores.Length);
-            expanded[scores.Length] = created;
-            m_Data.LevelScores = expanded;
-            return created;
+            record = new LevelRecordData { LevelIndex = levelIndex };
+            m_Data.LevelScores.Add(record);
+            return record;
         }
 
         private SaveData Load()
@@ -449,11 +395,8 @@ namespace PillFrenzy.Core
 
         private static SaveData Migrate(SaveData data)
         {
-            if (data.LevelScores == null)
-                data.LevelScores = Array.Empty<LevelRecordData>();
-
-            if (data.SpecialPowers == null)
-                data.SpecialPowers = Array.Empty<SpecialPowerSaveEntry>();
+            data.LevelScores ??= new List<LevelRecordData>();
+            data.SpecialPowers ??= new List<SpecialPowerSaveEntry>();
 
             if (data.Version < CurrentSaveVersion)
                 data.Version = CurrentSaveVersion;
@@ -492,10 +435,7 @@ namespace PillFrenzy.Core
             return new SaveData
             {
                 Version = CurrentSaveVersion,
-                CurrentLevelIndex = FirstLevelIndex,
-                FirstLevelCompleted = false,
-                LevelScores = Array.Empty<LevelRecordData>(),
-                SpecialPowers = Array.Empty<SpecialPowerSaveEntry>()
+                CurrentLevelIndex = FirstLevelIndex
             };
         }
     }

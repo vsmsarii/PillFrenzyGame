@@ -17,11 +17,11 @@ namespace PillFrenzy.Gameplay
             m_Catalog = catalog;
         }
 
-        public float Spacing => m_Catalog != null ? m_Catalog.Spacing : 2f;
+        public TargetCatalogSO Catalog => m_Catalog;
 
         public async UniTask<TargetController> Create(ETargetCapacity capacity, Transform parent, CancellationToken cancellationToken)
         {
-            if (m_Catalog == null || !m_Catalog.TryGetPrefab(capacity, out AssetReferenceGameObject prefab))
+            if (!m_Catalog.TryGetPrefab(capacity, out AssetReferenceGameObject prefab))
             {
                 Logger.Error("TargetCatalog has no prefab for capacity " + capacity + ".");
                 return null;
@@ -35,7 +35,7 @@ namespace PillFrenzy.Gameplay
             if (controller == null)
                 return;
 
-            controller.KillExit();
+            controller.KillTweens();
             m_Pool.Release(controller.gameObject);
         }
     }

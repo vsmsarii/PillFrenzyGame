@@ -183,12 +183,12 @@ MonoBehaviour:
   m_GameObject: {fileID: 1003237401584278367}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 4b5c6d7e8f90123456789abcdef01234, type: 3}
+  m_Script: {fileID: 11500000, guid: 597d28334e8c4e41a16f653730af97e4, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PillFrenzy.UI.SpecialPowerBarUI
   m_Root: {fileID: 4697170761051995856}
   m_ButtonRoot: {fileID: 2807121624007555509}
-  m_ButtonPrefab: {fileID: 7005, guid: b67231d6f6e6840bd929e67e0832157d, type: 3}
+  m_ButtonPrefab: {fileID: 7005, guid: 23857db7ee7045faaad3cb65a2cd9b56, type: 3}
 --- !u!1 &1125897155878432290
 GameObject:
   m_ObjectHideFlags: 0
@@ -902,7 +902,7 @@ MonoBehaviour:
   m_GameObject: {fileID: 5222945287676767516}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 7d1f4b5c6e903327f8b3d4e5a6c78903, type: 3}
+  m_Script: {fileID: 11500000, guid: e85ede1aa835424997635d0091448717, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PillFrenzy.UI.GameplayCanvasUI
   m_Level: {fileID: 9101111111111111114}

@@ -9,8 +9,14 @@ MonoBehaviour:
   m_GameObject: {fileID: 0}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: b1c2d3e4f5061728394a5b6c7d8e9f01, type: 3}
+  m_Script: {fileID: 11500000, guid: f4ef632b0c224ed384edb643d354688b, type: 3}
   m_Name: GlobalSettings
   m_EditorClassIdentifier: 
   m_DefaultHeartCount: 5
   m_HeartRefillMinutes: 30
+  m_TargetFrameRate: 60
+  m_HudTopInset: 0.1
+  m_BoxRowTopInset: 0.3
+  m_BoxRowViewportY: 0.14
+  m_BoxRowSideMargin: 0.4
+  m_BoxRowMinDepth: 8
