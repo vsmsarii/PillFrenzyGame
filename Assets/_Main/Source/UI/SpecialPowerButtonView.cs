@@ -17,35 +17,48 @@ namespace PillFrenzy.UI
         private int m_ShownCharges = -1;
         private int m_ShownTimerTenths = -2;
 
+        private void Awake()
+        {
+            m_Button.onClick.AddListener(OnClicked);
+        }
+
         public void Bind(SpecialPowerDefinitionSO definition, Action click)
         {
             m_Click = click;
-            m_ShownCharges = -1;
-            m_ShownTimerTenths = -2;
-
-            m_Button.onClick.RemoveListener(OnClicked);
-            m_Button.onClick.AddListener(OnClicked);
-
             if (definition.Icon != null)
                 m_Icon.sprite = definition.Icon;
         }
 
-        public void SetState(int charges, bool active, float remaining)
+        public void SetState(int charges, bool active)
         {
             m_Button.interactable = !active && charges > 0;
 
             if (charges != m_ShownCharges)
             {
                 m_ShownCharges = charges;
-                m_Charges.text = charges.ToString();
+                UiText.SetValue(m_Charges, string.Empty, charges);
             }
+        }
 
-            int tenths = active && remaining > 0f ? Mathf.RoundToInt(remaining * 10f) : -1;
+        public void SetTimer(float remaining)
+        {
+            int tenths = remaining > 0f ? Mathf.RoundToInt(remaining * 10f) : -1;
             if (tenths == m_ShownTimerTenths)
                 return;
 
             m_ShownTimerTenths = tenths;
-            m_Timer.text = tenths < 0 ? string.Empty : (tenths / 10f).ToString("0.0") + "s";
+            if (tenths < 0)
+            {
+                m_Timer.text = string.Empty;
+                return;
+            }
+
+            UiText.Begin();
+            UiText.Append(tenths / 10);
+            UiText.Append('.');
+            UiText.Append(tenths % 10);
+            UiText.Append('s');
+            UiText.ApplyTo(m_Timer);
         }
 
         private void OnClicked()

@@ -7,6 +7,9 @@ namespace PillFrenzy.Gameplay
     {
         [SerializeField] private Color m_Color = Color.white;
 
+        private string m_CachedName;
+
         public Color Color => m_Color;
+        public string DisplayName => m_CachedName ??= name;
     }
 }

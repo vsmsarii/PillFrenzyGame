@@ -5,89 +5,114 @@ namespace PillFrenzy.Core
 {
     public sealed class GameLoop
     {
-        private readonly List<ITickable> m_Tickable = new();
-        private readonly List<IFixedTickable> m_FixedTickable = new();
-        private readonly List<ILateTickable> m_LateTickable = new();
-
-        private readonly List<ITickable> m_TickBuffer = new();
-        private readonly List<IFixedTickable> m_FixedBuffer = new();
-        private readonly List<ILateTickable> m_LateBuffer = new();
+        private readonly Registry<ITickable> m_Tickables = new();
+        private readonly Registry<IFixedTickable> m_FixedTickables = new();
+        private readonly Registry<ILateTickable> m_LateTickables = new();
 
         public void Register(object obj)
         {
-            if (obj is ITickable tickable && !m_Tickable.Contains(tickable))
-                m_Tickable.Add(tickable);
+            if (obj is ITickable tickable)
+                m_Tickables.Add(tickable);
 
-            if (obj is IFixedTickable fixedTickable && !m_FixedTickable.Contains(fixedTickable))
-                m_FixedTickable.Add(fixedTickable);
+            if (obj is IFixedTickable fixedTickable)
+                m_FixedTickables.Add(fixedTickable);
 
-            if (obj is ILateTickable lateTickable && !m_LateTickable.Contains(lateTickable))
-                m_LateTickable.Add(lateTickable);
+            if (obj is ILateTickable lateTickable)
+                m_LateTickables.Add(lateTickable);
         }
 
         public void Unregister(object obj)
         {
             if (obj is ITickable tickable)
-                m_Tickable.Remove(tickable);
+                m_Tickables.Remove(tickable);
 
             if (obj is IFixedTickable fixedTickable)
-                m_FixedTickable.Remove(fixedTickable);
+                m_FixedTickables.Remove(fixedTickable);
 
             if (obj is ILateTickable lateTickable)
-                m_LateTickable.Remove(lateTickable);
+                m_LateTickables.Remove(lateTickable);
         }
 
         public void Tick(float deltaTime)
         {
-            m_TickBuffer.Clear();
-            m_TickBuffer.AddRange(m_Tickable);
-
-            for (int i = 0; i < m_TickBuffer.Count; i++)
+            foreach (ITickable tickable in m_Tickables.Snapshot())
             {
                 try
                 {
-                    m_TickBuffer[i].Tick(deltaTime);
+                    tickable.Tick(deltaTime);
                 }
                 catch (Exception exception)
                 {
-                    Logger.Error("Tick failed in " + m_TickBuffer[i].GetType().Name + ": " + exception);
+                    LogFailure("Tick", tickable, exception);
                 }
             }
         }
 
         public void FixedTick(float deltaTime)
         {
-            m_FixedBuffer.Clear();
-            m_FixedBuffer.AddRange(m_FixedTickable);
-
-            for (int i = 0; i < m_FixedBuffer.Count; i++)
+            foreach (IFixedTickable tickable in m_FixedTickables.Snapshot())
             {
                 try
                 {
-                    m_FixedBuffer[i].FixedTick(deltaTime);
+                    tickable.FixedTick(deltaTime);
                 }
                 catch (Exception exception)
                 {
-                    Logger.Error("FixedTick failed in " + m_FixedBuffer[i].GetType().Name + ": " + exception);
+                    LogFailure("FixedTick", tickable, exception);
                 }
             }
         }
 
         public void LateTick(float deltaTime)
         {
-            m_LateBuffer.Clear();
-            m_LateBuffer.AddRange(m_LateTickable);
-
-            for (int i = 0; i < m_LateBuffer.Count; i++)
+            foreach (ILateTickable tickable in m_LateTickables.Snapshot())
             {
                 try
                 {
-                    m_LateBuffer[i].LateTick(deltaTime);
+                    tickable.LateTick(deltaTime);
                 }
                 catch (Exception exception)
                 {
-                    Logger.Error("LateTick failed in " + m_LateBuffer[i].GetType().Name + ": " + exception);
+                    LogFailure("LateTick", tickable, exception);
                 }
+            }
+        }
+
+        private static void LogFailure(string phase, object tickable, Exception exception)
+        {
+            Logger.Error(phase + " failed in " + tickable.GetType().Name + ": " + exception);
+        }
+
+        private sealed class Registry<T>
+        {
+            private readonly List<T> m_Items = new();
+            private T[] m_Snapshot = Array.Empty<T>();
+            private bool m_Changed;
+
+            public void Add(T item)
+            {
+                if (m_Items.Contains(item))
+                    return;
+
+                m_Items.Add(item);
+                m_Changed = true;
+            }
+
+            public void Remove(T item)
+            {
+                if (m_Items.Remove(item))
+                    m_Changed = true;
+            }
+
+            public T[] Snapshot()
+            {
+                if (m_Changed)
+                {
+                    m_Snapshot = m_Items.ToArray();
+                    m_Changed = false;
+                }
+
+                return m_Snapshot;
             }
         }
     }

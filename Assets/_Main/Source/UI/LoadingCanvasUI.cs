@@ -7,7 +7,6 @@ namespace PillFrenzy.UI
 {
     public sealed class LoadingCanvasUI : MonoBehaviour
     {
-        [SerializeField] private TMP_Text m_Label;
         [SerializeField] private TMP_Text m_Percent;
         [SerializeField] private Image m_Fill;
 
@@ -31,7 +30,11 @@ namespace PillFrenzy.UI
         {
             float clamped = Mathf.Clamp01(progress);
             m_Fill.fillAmount = clamped;
-            m_Percent.text = Mathf.RoundToInt(clamped * 100f) + "%";
+
+            UiText.Begin();
+            UiText.Append(Mathf.RoundToInt(clamped * 100f));
+            UiText.Append('%');
+            UiText.ApplyTo(m_Percent);
         }
     }
 }

@@ -14,6 +14,7 @@ namespace PillFrenzy.Core
         public int TotalCompletionSeconds;
         public List<LevelRecordData> LevelScores = new();
         public List<SpecialPowerSaveEntry> SpecialPowers = new();
+        public List<string> SeenTutorials = new();
         public long ImmortalUntilUnixUtc;
         public int Hearts;
         public bool HeartsInitialized;

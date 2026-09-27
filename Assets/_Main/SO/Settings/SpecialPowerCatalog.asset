@@ -14,5 +14,5 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   m_Entries:
   - m_Definition: {fileID: 11400000, guid: 866d73dbb0dc4af8a0d56fd7b247aa78, type: 2}
-    m_UnlockLevel: 2
+    m_UnlockLevel: 5
     m_InitialCharges: 2

@@ -4,24 +4,12 @@ namespace PillFrenzy.Gameplay
 {
     public static class SpecialPowerUnlockSync
     {
-        public static void Sync(ISaveService save, SpecialPowerCatalogSO catalog)
+        public static void Sync(ISaveService save, SpecialPowerCatalogSO catalog, int reachedLevelNumber)
         {
-            if (save == null || catalog == null || catalog.Entries == null)
-                return;
-
-            int levelNumber = save.CurrentLevelNumber;
-            SpecialPowerCatalogEntry[] entries = catalog.Entries;
-            for (int i = 0; i < entries.Length; i++)
+            foreach (SpecialPowerCatalogEntry entry in catalog.Entries)
             {
-                SpecialPowerCatalogEntry catalogEntry = entries[i];
-                SpecialPowerDefinitionSO definition = catalogEntry.Definition;
-                if (definition == null || definition.Id == ESpecialPowerId.None)
-                    continue;
-
-                if (levelNumber < catalogEntry.UnlockLevel)
-                    continue;
-
-                save.TryGrantInitialSpecialPower(definition.Id, catalogEntry.InitialCharges);
+                if (entry.Definition != null && reachedLevelNumber >= entry.UnlockLevel)
+                    save.TryGrantInitialSpecialPower(entry.Definition.Id, entry.InitialCharges);
             }
         }
     }

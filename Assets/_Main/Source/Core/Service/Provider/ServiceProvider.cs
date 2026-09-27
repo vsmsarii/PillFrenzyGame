@@ -6,8 +6,7 @@ namespace PillFrenzy.Core
     public sealed class ServiceProvider
     {
         private readonly Dictionary<Type, IService> m_Services = new();
-        private readonly HashSet<IService> m_InitializedServices = new();
-        private readonly List<IService> m_Order = new();
+        private readonly List<IService> m_RegistrationOrder = new();
         private readonly GameLoop m_GameLoop;
 
         public ServiceProvider(GameLoop gameLoop)
@@ -17,33 +16,21 @@ namespace PillFrenzy.Core
 
         public void Register<T>(T service) where T : class, IService
         {
-            if (!m_InitializedServices.Contains(service))
+            if (m_RegistrationOrder.Contains(service))
             {
-                service.Initialize();
-                m_InitializedServices.Add(service);
-                m_Order.Add(service);
-
-                if (service is ITickable || service is IFixedTickable || service is ILateTickable)
-                    m_GameLoop.Register(service);
-
-                Logger.Log($"Registered service: {service.GetType().Name}");
-            }
-            else
-            {
-                Logger.Warning($"Service already registered: {service.GetType().Name}");
+                Logger.Warning("Service already registered: " + service.GetType().Name);
                 return;
             }
 
+            service.Initialize();
+            m_RegistrationOrder.Add(service);
+            m_GameLoop.Register(service);
             m_Services[typeof(T)] = service;
 
-            Type[] interfaces = service.GetType().GetInterfaces();
-            for (int index = 0; index < interfaces.Length; index++)
+            foreach (Type interfaceType in service.GetType().GetInterfaces())
             {
-                Type interfaceType = interfaces[index];
-                if (interfaceType == typeof(IService) || !typeof(IService).IsAssignableFrom(interfaceType))
-                    continue;
-
-                m_Services[interfaceType] = service;
+                if (interfaceType != typeof(IService) && typeof(IService).IsAssignableFrom(interfaceType))
+                    m_Services[interfaceType] = service;
             }
         }
 
@@ -54,15 +41,14 @@ namespace PillFrenzy.Core
 
         public void Dispose()
         {
-            for (int i = m_Order.Count - 1; i >= 0; i--)
+            for (int i = m_RegistrationOrder.Count - 1; i >= 0; i--)
             {
-                IService service = m_Order[i];
+                IService service = m_RegistrationOrder[i];
                 m_GameLoop.Unregister(service);
                 service.Dispose();
             }
 
-            m_Order.Clear();
-            m_InitializedServices.Clear();
+            m_RegistrationOrder.Clear();
             m_Services.Clear();
         }
     }

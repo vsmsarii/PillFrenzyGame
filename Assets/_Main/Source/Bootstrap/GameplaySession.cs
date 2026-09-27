@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Threading;
 using Cysharp.Threading.Tasks;
 using PillFrenzy.Core;
@@ -10,172 +11,158 @@ namespace PillFrenzy.Bootstrap
 {
     public sealed class GameplaySession
     {
+        private const int ExtraCapsuleWarmup = 2;
+
         private readonly GameContext m_Context;
         private readonly IAssetProvider m_Assets;
         private readonly CancellationTokenSource m_Cts = new();
+        private readonly CancellationToken m_Token;
+        private readonly UniTaskCompletionSource<RunEnded> m_RunEnd = new();
+        private readonly PreRunSequence m_PreRun = new();
 
         private GameObject m_LayoutInstance;
-        private CapsuleSystem m_CapsuleSystem;
-        private SpawnSystem m_SpawnSystem;
+        private TargetSystem m_Targets;
+        private CapsuleSystem m_Capsules;
+        private SpawnSystem m_Spawn;
         private SpawnPacingSystem m_Pacing;
         private RunScoreSystem m_Score;
         private GameplayFeedback m_Feedback;
         private VfxSystem m_Vfx;
         private LevelCameraFramer m_CameraFramer;
-        private bool m_RunStarted;
+        private TutorialRunSystem m_TutorialRun;
         private bool m_ShutDown;
 
         public LevelSystem Level { get; private set; }
-        public TargetSystem Targets { get; private set; }
         public SpecialPowerSystem Powers { get; private set; }
         public LevelDefinitionSO Definition { get; private set; }
         public bool IsLoaded { get; private set; }
+        public bool HasRunEnded => Level != null && Level.HasEnded;
+        public bool IsRunActive => Level != null && Level.Phase == ELevelPhase.Playing;
+        public CancellationToken Token => m_Token;
 
         public GameplaySession(GameContext context)
         {
             m_Context = context;
             m_Assets = context.Services.Get<IAssetProvider>();
+            m_Token = m_Cts.Token;
         }
 
         public async UniTask<bool> LoadAsync(int levelIndex)
         {
-            CancellationToken token = m_Cts.Token;
-            ISaveService save = m_Context.Services.Get<ISaveService>();
-
             UIPanels.SetLoadingProgress(0.8f);
-            TargetCatalogSO targetCatalog = await m_Assets.LoadAsset<TargetCatalogSO>(AddressableKeys.TargetCatalog, token);
-            if (token.IsCancellationRequested)
-                return false;
-
+            TargetCatalogSO targetCatalog = await LoadAsset<TargetCatalogSO>(AddressableKeys.TargetCatalog);
             if (targetCatalog == null)
-                return Abort("Target catalog missing.");
+                return AbortLoad("Target catalog missing.");
 
             UIPanels.SetLoadingProgress(0.85f);
-            if (m_Context.LevelCatalog == null || !m_Context.LevelCatalog.TryGetDefinitionKey(levelIndex, out string definitionKey))
-                return Abort("Level definition key missing for index " + levelIndex + ".");
+            if (!m_Context.LevelCatalog.TryGetDefinitionKey(levelIndex, out string definitionKey))
+                return AbortLoad("Level definition key missing for index " + levelIndex + ".");
 
-            LevelDefinitionSO definition = await m_Assets.LoadAsset<LevelDefinitionSO>(definitionKey, token);
-            if (token.IsCancellationRequested)
-                return false;
-
-            if (definition == null)
-                return Abort("Level definition missing for index " + levelIndex + ".");
+            Definition = await LoadAsset<LevelDefinitionSO>(definitionKey);
+            if (Definition == null)
+                return AbortLoad("Level definition missing for index " + levelIndex + ".");
 
             UIPanels.SetLoadingProgress(0.9f);
-            if (!definition.TryGetLayoutKey(out string layoutKey)
-                && (m_Context.LevelCatalog == null || !m_Context.LevelCatalog.TryGetDefaultLayoutKey(out layoutKey)))
-                return Abort("Level layout missing for index " + levelIndex + ".");
+            if (!Definition.TryGetLayoutKey(out string layoutKey) && !m_Context.LevelCatalog.TryGetDefaultLayoutKey(out layoutKey))
+                return AbortLoad("Level layout missing for index " + levelIndex + ".");
 
-            m_LayoutInstance = await m_Assets.Instantiate(layoutKey, null, token);
-            if (token.IsCancellationRequested)
-                return false;
-
+            m_LayoutInstance = await m_Assets.Instantiate(layoutKey, null, m_Token);
             if (m_LayoutInstance == null)
-                return Abort("Level layout failed to instantiate for index " + levelIndex + ".");
+                return AbortLoad("Level layout failed to instantiate for index " + levelIndex + ".");
 
             LevelLayout layout = m_LayoutInstance.GetComponent<LevelLayout>();
-            if (layout == null || layout.Paths.Count == 0)
-                return Abort("Level prefab is missing LevelLayout or paths.");
+            if (layout.Paths.Count == 0)
+                return AbortLoad("Level layout has no paths.");
 
-            Camera camera = Camera.main;
-            if (camera == null || camera.transform.parent == null)
-                return Abort("Scene needs a main camera under a camera rig.");
+            FeedbackSettingsSO feedbackSettings = await LoadAsset<FeedbackSettingsSO>(AddressableKeys.FeedbackSettings);
+            SpecialPowerCatalogSO powerCatalog = await LoadAsset<SpecialPowerCatalogSO>(AddressableKeys.SpecialPowerCatalog);
+            VfxCatalogSO vfxCatalog = await LoadAsset<VfxCatalogSO>(AddressableKeys.VfxCatalog);
+            TutorialCatalogSO tutorialCatalog = await LoadAsset<TutorialCatalogSO>(AddressableKeys.TutorialCatalog);
+            if (feedbackSettings == null || powerCatalog == null)
+                return AbortLoad("Feedback settings or special power catalog missing.");
 
-            if (m_Context.GlobalSettings == null)
-                return Abort("Global settings missing.");
+            if (m_Token.IsCancellationRequested)
+                return false;
 
-            IInputService input = m_Context.Services.Get<IInputService>();
+            ISaveService save = m_Context.Services.Get<ISaveService>();
             IAudioService audio = m_Context.Services.Get<IAudioService>();
             IGameObjectPool pool = m_Context.Services.Get<IGameObjectPool>();
+            Camera camera = Camera.main;
             audio.PlayMusic(EAudioName.MusicGameplay);
-
-            FeedbackSettingsSO feedbackSettings = await m_Assets.LoadAsset<FeedbackSettingsSO>(AddressableKeys.FeedbackSettings, token);
-            if (token.IsCancellationRequested)
-                return false;
-
-            if (feedbackSettings == null)
-                return Abort("Feedback settings missing.");
-
-            Transform shakeTarget = layout.ShakeHolder != null ? layout.ShakeHolder : camera.transform;
-            VfxCatalogSO vfxCatalog = await m_Assets.LoadAsset<VfxCatalogSO>(AddressableKeys.VfxCatalog, token);
-            if (token.IsCancellationRequested)
-                return false;
 
             if (vfxCatalog == null)
                 Logger.Warning("VFX catalog missing. Gameplay runs without VFX.");
 
-            m_Vfx = new VfxSystem(pool, vfxCatalog != null ? vfxCatalog.Entries : Array.Empty<VfxEntry>(), token);
+            m_Vfx = new VfxSystem(pool, vfxCatalog != null ? vfxCatalog.Entries : Array.Empty<VfxEntry>(), m_Token);
+            Transform shakeTarget = layout.ShakeHolder != null ? layout.ShakeHolder : camera.transform;
             m_Feedback = new GameplayFeedback(m_Vfx, audio, shakeTarget, feedbackSettings);
-            CapsuleFactory factory = new CapsuleFactory(pool, layout.CapsuleRoot);
-            TargetFactory targetFactory = new TargetFactory(pool, targetCatalog);
-            Targets = new TargetSystem(targetFactory);
-            m_CameraFramer = new LevelCameraFramer(camera, layout, definition, m_Context.GlobalSettings, targetCatalog);
-            m_Context.GameLoop.Register(m_CameraFramer);
+            m_Targets = new TargetSystem(new TargetFactory(pool, targetCatalog));
+            m_CameraFramer = new LevelCameraFramer(camera, layout, Definition, m_Context.GlobalSettings, targetCatalog);
+
             UIPanels.SetLoadingProgress(0.95f);
-            await Targets.Bind(definition, layout, token);
-            if (token.IsCancellationRequested)
-                return false;
-
-            await pool.Warmup(AddressableKeys.CapsulePrefab, CapsuleWarmupCount(definition, targetCatalog), token);
-            if (token.IsCancellationRequested)
-                return false;
-
+            await m_Targets.Bind(Definition, layout, m_Token);
+            await pool.Warmup(AddressableKeys.CapsulePrefab, CapsuleWarmupCount(targetCatalog), m_Token);
             await m_Vfx.Warmup();
-            if (token.IsCancellationRequested)
+            if (m_Token.IsCancellationRequested)
                 return false;
 
-            m_CapsuleSystem = new CapsuleSystem(
-                input,
-                Targets,
-                camera,
-                token,
-                m_Feedback,
-                layout.CapsuleMask);
-            m_SpawnSystem = new SpawnSystem(factory, m_CapsuleSystem);
+            m_Capsules = new CapsuleSystem(m_Context.Services.Get<IInputService>(), m_Targets, camera, m_Token, m_Feedback, layout.CapsuleMask);
+            m_Spawn = new SpawnSystem(new CapsuleFactory(pool, layout.CapsuleRoot), m_Capsules);
             m_Score = new RunScoreSystem(save);
             Level = new LevelSystem(m_Score, save, levelIndex, m_Feedback);
-            m_Pacing = new SpawnPacingSystem(m_SpawnSystem, m_CapsuleSystem, layout.Paths, Level, token);
-            m_CapsuleSystem.Bind(m_SpawnSystem, Level);
-
-            SpecialPowerCatalogSO powerCatalog = await m_Assets.LoadAsset<SpecialPowerCatalogSO>(AddressableKeys.SpecialPowerCatalog, token);
-            if (token.IsCancellationRequested)
-                return false;
+            m_Pacing = new SpawnPacingSystem(m_Spawn, m_Capsules, layout.Paths, Level, m_Token);
+            m_Capsules.Bind(m_Spawn, Level);
 
             Powers = new SpecialPowerSystem(powerCatalog, save, Level, m_Pacing);
             Powers.SyncUnlockGrants();
-            Definition = definition;
 
-            m_Context.GameLoop.Register(m_CapsuleSystem);
-            m_Context.GameLoop.Register(Level);
-            m_Context.GameLoop.Register(m_Pacing);
-            m_Context.GameLoop.Register(Powers);
-            m_Context.GameLoop.Register(m_Vfx);
+            if (tutorialCatalog != null)
+                SetupTutorials(tutorialCatalog, levelIndex, save, camera);
+            else
+                Logger.Warning("Tutorial catalog missing. Gameplay runs without tutorials.");
+
+            GameLoop loop = m_Context.GameLoop;
+            loop.Register(m_CameraFramer);
+            loop.Register(m_Capsules);
+            loop.Register(Level);
+            loop.Register(m_Pacing);
+            loop.Register(Powers);
+            loop.Register(m_Vfx);
+            if (m_TutorialRun != null)
+                loop.Register(m_TutorialRun);
+
             UIPanels.SetLoadingProgress(1f);
             IsLoaded = true;
             return true;
         }
 
-        public void BeginRun()
+        public async UniTask<bool> StartAsync()
         {
-            if (!IsLoaded)
-                return;
+            m_Targets.PublishFill();
+            Level.EnterIntro();
 
-            Targets.PublishFill();
-            if (m_RunStarted)
-                return;
+            PreRunContext context = new PreRunContext(Level.LevelIndex, Definition);
+            bool canceled = await m_PreRun.RunAsync(context, m_Token).SuppressCancellationThrow();
+            if (canceled)
+                return false;
 
-            m_RunStarted = true;
-            Level.StartRun(Definition);
+            EB.Presentation.Add<RunEnded>(OnRunEnded);
+            return Level.StartRun(Definition);
         }
 
-        public void Pause()
+        public async UniTask<(bool Canceled, RunEnded Result)> WaitForRunEndAsync()
         {
-            Level?.Pause();
+            return await m_RunEnd.Task.AttachExternalCancellation(m_Token).SuppressCancellationThrow();
         }
 
-        public void Resume()
+        public void Pause(EPauseReason reason)
         {
-            Level?.Resume();
+            Level.Pause(reason);
+        }
+
+        public void Resume(EPauseReason reason)
+        {
+            Level.Resume(reason);
         }
 
         public void Shutdown()
@@ -185,102 +172,103 @@ namespace PillFrenzy.Bootstrap
 
             m_ShutDown = true;
             IsLoaded = false;
+            EB.Presentation.Remove<RunEnded>(OnRunEnded);
             m_Cts.Cancel();
             m_Cts.Dispose();
+            m_RunEnd.TrySetCanceled();
+            m_PreRun.Clear();
 
-            if (Powers != null)
-            {
-                m_Context.GameLoop.Unregister(Powers);
-                Powers.Shutdown();
-                Powers = null;
-            }
+            GameLoop loop = m_Context.GameLoop;
+            loop.Unregister(m_CameraFramer);
+            loop.Unregister(m_Capsules);
+            loop.Unregister(Level);
+            loop.Unregister(m_Pacing);
+            loop.Unregister(Powers);
+            loop.Unregister(m_Vfx);
+            loop.Unregister(m_TutorialRun);
 
-            if (m_CameraFramer != null)
-            {
-                m_Context.GameLoop.Unregister(m_CameraFramer);
-                m_CameraFramer = null;
-            }
+            Powers?.Shutdown();
+            m_TutorialRun?.Shutdown();
+            m_Pacing?.Shutdown();
+            m_Spawn?.DespawnSeated(m_Targets);
+            m_Spawn?.DespawnAll();
+            m_Capsules?.Shutdown();
+            m_Targets?.Shutdown();
+            Level?.Shutdown();
+            m_Score?.Shutdown();
+            m_Feedback?.Shutdown();
+            m_Vfx?.Shutdown();
 
-            if (m_Pacing != null)
-            {
-                m_Context.GameLoop.Unregister(m_Pacing);
-                m_Pacing.Shutdown();
-                m_Pacing = null;
-            }
-
-            if (m_SpawnSystem != null)
-            {
-                m_SpawnSystem.DespawnSeated(Targets);
-                m_SpawnSystem.DespawnAll();
-                m_SpawnSystem = null;
-            }
-
-            if (m_CapsuleSystem != null)
-            {
-                m_Context.GameLoop.Unregister(m_CapsuleSystem);
-                m_CapsuleSystem.Shutdown();
-                m_CapsuleSystem = null;
-            }
-
-            if (Targets != null)
-            {
-                Targets.Shutdown();
-                Targets = null;
-            }
-
-            if (Level != null)
-            {
-                m_Context.GameLoop.Unregister(Level);
-                Level.Shutdown();
-                Level = null;
-            }
-
-            if (m_Score != null)
-            {
-                m_Score.Shutdown();
-                m_Score = null;
-            }
-
-            if (m_Feedback != null)
-            {
-                m_Feedback.Shutdown();
-                m_Feedback = null;
-            }
-
-            if (m_Vfx != null)
-            {
-                m_Context.GameLoop.Unregister(m_Vfx);
-                m_Vfx.Shutdown();
-                m_Vfx = null;
-            }
-
-            ReleaseLayout();
-            Definition = null;
+            if (m_LayoutInstance != null)
+                m_Assets.ReleaseInstance(m_LayoutInstance);
         }
 
-        private static int CapsuleWarmupCount(LevelDefinitionSO definition, TargetCatalogSO targetCatalog)
+        private void SetupTutorials(TutorialCatalogSO catalog, int levelIndex, ISaveService save, Camera camera)
+        {
+            TutorialSelector selector = new TutorialSelector(catalog, save, Powers);
+            TutorialPresenter modalPresenter = new TutorialPresenter();
+            PrepareForPendingTutorials(selector, levelIndex);
+
+            m_PreRun.Add(new TutorialPreRunStep(selector, modalPresenter, save));
+            m_TutorialRun = new TutorialRunSystem(
+                selector,
+                new TutorialMomentPresenter(m_Token),
+                modalPresenter,
+                save,
+                Level,
+                m_Capsules,
+                camera,
+                m_Token);
+            m_Capsules.SetTapInterceptor(m_TutorialRun);
+        }
+
+        private void PrepareForPendingTutorials(TutorialSelector selector, int levelIndex)
+        {
+            List<TutorialDefinitionSO> pending = new List<TutorialDefinitionSO>();
+            selector.CollectPending(levelIndex, Definition, pending);
+            foreach (TutorialDefinitionSO tutorial in pending)
+            {
+                if(tutorial == null) 
+                    continue;
+
+                if (tutorial.RevealsSpecialPower)
+                    Powers.Conceal(tutorial.SpecialPower);
+
+                if(tutorial.ForcedSpawns == null)
+                    continue;
+                foreach (ForcedCapsuleSpawn forcedSpawn in tutorial.ForcedSpawns)
+                    m_Pacing.ForceKind(forcedSpawn);
+            }
+        }
+
+        private void OnRunEnded(RunEnded evt)
+        {
+            EB.Presentation.Remove<RunEnded>(OnRunEnded);
+            m_RunEnd.TrySetResult(evt);
+        }
+
+        private int CapsuleWarmupCount(TargetCatalogSO targetCatalog)
         {
             int largestBox = 0;
-            foreach (TargetQuota quota in definition.TargetQueue)
+            foreach (TargetQuota quota in Definition.TargetQueue)
                 largestBox = Mathf.Max(largestBox, (int)quota.Capacity);
 
-            return definition.MaxActive + targetCatalog.VisibleCount * largestBox + 2;
+            return Definition.MaxActive + targetCatalog.VisibleCount * largestBox + ExtraCapsuleWarmup;
         }
 
-        private bool Abort(string reason)
+        private UniTask<T> LoadAsset<T>(string key) where T : UnityEngine.Object
         {
+            return m_Assets.LoadAsset<T>(key, m_Token);
+        }
+
+        private bool AbortLoad(string reason)
+        {
+            if (m_Token.IsCancellationRequested)
+                return false;
+
             Logger.Error(reason);
             UIPanels.HideLoading();
             return false;
-        }
-
-        private void ReleaseLayout()
-        {
-            if (m_LayoutInstance == null)
-                return;
-
-            m_Assets.ReleaseInstance(m_LayoutInstance);
-            m_LayoutInstance = null;
         }
     }
 }

@@ -38,12 +38,6 @@ namespace PillFrenzy.Core
 
         public bool TryGet(string key, out IAPCatalogEntry entry)
         {
-            if (m_Entries == null || string.IsNullOrEmpty(key))
-            {
-                entry = default;
-                return false;
-            }
-
             for (int i = 0; i < m_Entries.Length; i++)
             {
                 if (m_Entries[i].Key != key)

@@ -112,9 +112,7 @@ namespace PillFrenzy.Editor
         public static GameObject CreateLayoutFor(LevelDefinitionSO definition)
         {
             LevelManifestSO manifest = FindManifest();
-            GameObject template = definition.Layout != null && definition.Layout.editorAsset != null
-                ? definition.Layout.editorAsset
-                : manifest != null ? LoadDefaultLayout(manifest) : null;
+            GameObject template = definition.Layout.editorAsset != null ? definition.Layout.editorAsset : LoadDefaultLayout(manifest);
 
             if (template == null)
             {
@@ -126,7 +124,7 @@ namespace PillFrenzy.Editor
             if (!AssetDatabase.CopyAsset(AssetDatabase.GetAssetPath(template), path))
                 return null;
 
-            int levelNumber = manifest != null ? LoadLevels(manifest).IndexOf(definition) + 1 : 0;
+            int levelNumber = LoadLevels(manifest).IndexOf(definition) + 1;
             string address = levelNumber > 0 ? "layout.level." + levelNumber : "layout." + definition.name.ToLowerInvariant();
             string guid = AssetDatabase.AssetPathToGUID(path);
             EnsureAddressable(guid, address);

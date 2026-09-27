@@ -10,15 +10,14 @@ namespace PillFrenzy.Core
         private const int FirstLevelIndex = 0;
         private const int CurrentSaveVersion = 1;
         private const string SaveFileName = "save.json";
+        private const float MaintenanceIntervalSeconds = 1f;
 
-        private readonly string m_Path;
-        private readonly string m_TempPath;
-        private readonly string m_BackupPath;
         private SaveData m_Data;
         private int m_MaxHearts;
         private float m_HeartRefillMinutes;
         private bool m_Dirty;
         private bool m_HeartsConfigured;
+        private float m_NextMaintenanceTime;
 
         public static string FilePath => Path.Combine(Application.persistentDataPath, SaveFileName);
         public static string BackupPath => FilePath + ".bak";
@@ -26,31 +25,16 @@ namespace PillFrenzy.Core
 
         public static void DeleteSaveFiles()
         {
-            TryDeleteFile(FilePath);
-            TryDeleteFile(BackupPath);
-            TryDeleteFile(TempPath);
-        }
-
-        private static void TryDeleteFile(string path)
-        {
-            if (!File.Exists(path))
-                return;
-
-            File.Delete(path);
-        }
-
-        public SaveService()
-        {
-            m_Path = FilePath;
-            m_TempPath = TempPath;
-            m_BackupPath = BackupPath;
+            File.Delete(FilePath);
+            File.Delete(BackupPath);
+            File.Delete(TempPath);
         }
 
         public int CurrentLevelIndex => m_Data.CurrentLevelIndex;
         public int CurrentLevelNumber => m_Data.CurrentLevelIndex + 1;
         public bool HasCompletedFirstLevel => m_Data.FirstLevelCompleted;
         public int MaxHearts => m_MaxHearts;
-        public int Hearts => m_Data.Hearts < 0 ? 0 : m_Data.Hearts;
+        public int Hearts => m_Data.Hearts;
 
         public long SecondsUntilNextHeart
         {
@@ -59,32 +43,17 @@ namespace PillFrenzy.Core
                 if (m_Data.Hearts >= m_MaxHearts || m_Data.NextHeartUnixUtc <= 0)
                     return 0;
 
-                long remaining = m_Data.NextHeartUnixUtc - DateTimeOffset.UtcNow.ToUnixTimeSeconds();
-                return remaining > 0 ? remaining : 0;
+                return Math.Max(0, m_Data.NextHeartUnixUtc - NowUnix);
             }
         }
 
-        public long ImmortalRemainingSeconds
-        {
-            get
-            {
-                long now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
-                long remaining = m_Data.ImmortalUntilUnixUtc - now;
-                return remaining > 0 ? remaining : 0;
-            }
-        }
-
+        public long ImmortalRemainingSeconds => Math.Max(0, m_Data.ImmortalUntilUnixUtc - NowUnix);
         public bool IsImmortalActive => ImmortalRemainingSeconds > 0;
 
-        public int GetLevelScore(int levelIndex)
-        {
-            LevelRecordData record = FindLevelRecord(levelIndex);
-            return record != null ? record.Score : 0;
-        }
+        private static long NowUnix => DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+        private long HeartRefillSeconds => (long)Math.Ceiling(m_HeartRefillMinutes * 60d);
 
         public int GetTotalScore() => m_Data.TotalScore;
-        public int GetTotalAttempts() => m_Data.TotalAttempts;
-        public int GetTotalCompletionSeconds() => m_Data.TotalCompletionSeconds;
 
         public int GetLevelAttempts(int levelIndex)
         {
@@ -92,9 +61,20 @@ namespace PillFrenzy.Core
             return record != null ? record.Attempts : 0;
         }
 
+        public int IncrementLevelAttempts(int levelIndex)
+        {
+            LevelRecordData record = FindOrCreateLevelRecord(levelIndex);
+            record.Attempts++;
+            m_Data.TotalAttempts++;
+            MarkDirty();
+            return record.Attempts;
+        }
+
         public void CompleteLevel(int levelIndex, int score, int completionSeconds)
         {
-            UpsertScore(levelIndex, score, completionSeconds);
+            LevelRecordData record = FindOrCreateLevelRecord(levelIndex);
+            record.Score = Math.Max(record.Score, score);
+            record.CompletionSeconds = Math.Max(record.CompletionSeconds, completionSeconds);
 
             if (levelIndex == FirstLevelIndex)
                 m_Data.FirstLevelCompleted = true;
@@ -104,7 +84,6 @@ namespace PillFrenzy.Core
 
             m_Data.TotalCompletionSeconds += completionSeconds;
             m_Data.TotalScore += score;
-
             MarkDirty();
         }
 
@@ -116,61 +95,58 @@ namespace PillFrenzy.Core
 
         public bool TryConsumeSpecialPowerCharge(ESpecialPowerId id)
         {
-            SpecialPowerSaveEntry entry = FindOrCreatePower(id);
-
-            if (entry.Charges <= 0)
+            SpecialPowerSaveEntry entry = FindPower(id);
+            if (entry == null || entry.Charges <= 0)
                 return false;
 
             entry.Charges--;
-
             MarkDirty();
-
             return true;
         }
 
         public void AddSpecialPowerCharges(ESpecialPowerId id, int amount)
         {
-            if (amount <= 0 || id == ESpecialPowerId.None)
-                return;
-
-            SpecialPowerSaveEntry entry = FindOrCreatePower(id);
-            entry.Charges += amount;
-
+            FindOrCreatePower(id).Charges += amount;
             MarkDirty();
         }
 
         public bool TryGrantInitialSpecialPower(ESpecialPowerId id, int charges)
         {
-            if (id == ESpecialPowerId.None)
-                return false;
-
             SpecialPowerSaveEntry entry = FindOrCreatePower(id);
             if (entry.InitialGranted)
                 return false;
 
             entry.InitialGranted = true;
-            if (charges > 0)
-                entry.Charges += charges;
+            entry.Charges += charges;
             MarkDirty();
             return true;
         }
 
-        public void GrantImmortalityMinutes(int minutes)
+        public bool HasSeenTutorial(string tutorialId)
         {
-            if (minutes <= 0)
+            return m_Data.SeenTutorials.Contains(tutorialId);
+        }
+
+        public void MarkTutorialSeen(string tutorialId)
+        {
+            if (m_Data.SeenTutorials.Contains(tutorialId))
                 return;
 
-            long now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
-            long current = m_Data.ImmortalUntilUnixUtc;
-            long start = current > now ? current : now;
+            m_Data.SeenTutorials.Add(tutorialId);
+            MarkDirty();
+        }
+
+        public void GrantImmortalityMinutes(int minutes)
+        {
+            long start = Math.Max(m_Data.ImmortalUntilUnixUtc, NowUnix);
             m_Data.ImmortalUntilUnixUtc = start + minutes * 60L;
             MarkDirty();
         }
 
         public void ConfigureHearts(int maxHeartCount, float refillMinutes)
         {
-            m_MaxHearts = Math.Max(0, maxHeartCount);
-            m_HeartRefillMinutes = Math.Max(0f, refillMinutes);
+            m_MaxHearts = maxHeartCount;
+            m_HeartRefillMinutes = refillMinutes;
             m_HeartsConfigured = true;
 
             if (!m_Data.HeartsInitialized)
@@ -181,18 +157,15 @@ namespace PillFrenzy.Core
                 MarkDirty();
             }
 
-            if (m_Data.Hearts < m_MaxHearts && m_Data.NextHeartUnixUtc <= 0 && HeartRefillSeconds > 0)
-            {
-                m_Data.NextHeartUnixUtc = DateTimeOffset.UtcNow.ToUnixTimeSeconds() + HeartRefillSeconds;
-                MarkDirty();
-            }
+            if (m_Data.Hearts < m_MaxHearts && m_Data.NextHeartUnixUtc <= 0)
+                ScheduleNextHeart();
 
             RefreshHearts();
         }
 
         public void RefreshHearts()
         {
-            if (!m_HeartsConfigured || m_Data == null || !m_Data.HeartsInitialized)
+            if (!m_HeartsConfigured)
                 return;
 
             if (m_Data.Hearts >= m_MaxHearts)
@@ -206,30 +179,16 @@ namespace PillFrenzy.Core
                 return;
             }
 
-            if (m_HeartRefillMinutes <= 0f || m_Data.NextHeartUnixUtc <= 0)
+            if (m_Data.NextHeartUnixUtc <= 0)
                 return;
 
-            long now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
-            long refillSeconds = HeartRefillSeconds;
-            if (refillSeconds <= 0)
-                return;
-
-            bool dirty = false;
+            long now = NowUnix;
             while (m_Data.Hearts < m_MaxHearts && now >= m_Data.NextHeartUnixUtc)
             {
                 m_Data.Hearts++;
-                dirty = true;
-                if (m_Data.Hearts >= m_MaxHearts)
-                {
-                    m_Data.NextHeartUnixUtc = 0;
-                    break;
-                }
-
-                m_Data.NextHeartUnixUtc += refillSeconds;
-            }
-
-            if (dirty)
+                m_Data.NextHeartUnixUtc = m_Data.Hearts < m_MaxHearts ? m_Data.NextHeartUnixUtc + HeartRefillSeconds : 0;
                 MarkDirty();
+            }
         }
 
         public bool TrySpendHeart()
@@ -240,12 +199,7 @@ namespace PillFrenzy.Core
 
             m_Data.Hearts--;
             if (m_Data.Hearts < m_MaxHearts && m_Data.NextHeartUnixUtc <= 0)
-            {
-                long refillSeconds = HeartRefillSeconds;
-                m_Data.NextHeartUnixUtc = refillSeconds > 0
-                    ? DateTimeOffset.UtcNow.ToUnixTimeSeconds() + refillSeconds
-                    : 0;
-            }
+                ScheduleNextHeart();
 
             MarkDirty();
             return true;
@@ -253,13 +207,11 @@ namespace PillFrenzy.Core
 
         public void GrantHearts(int amount)
         {
-            if (amount <= 0)
-                return;
-
             RefreshHearts();
             m_Data.Hearts += amount;
             if (m_Data.Hearts >= m_MaxHearts)
                 m_Data.NextHeartUnixUtc = 0;
+
             MarkDirty();
         }
 
@@ -270,58 +222,43 @@ namespace PillFrenzy.Core
 
         public void LateTick(float deltaTime)
         {
+            if (Time.unscaledTime < m_NextMaintenanceTime)
+                return;
+
+            m_NextMaintenanceTime = Time.unscaledTime + MaintenanceIntervalSeconds;
             RefreshHearts();
             PersistIfDirty();
-        }
-
-        private long HeartRefillSeconds
-        {
-            get
-            {
-                if (m_HeartRefillMinutes <= 0f)
-                    return 0;
-
-                return (long)Math.Ceiling(m_HeartRefillMinutes * 60d);
-            }
-        }
-
-        public int IncrementLevelAttempts(int levelIndex)
-        {
-            LevelRecordData record = FindOrCreateLevelRecord(levelIndex);
-            record.Attempts++;
-            m_Data.TotalAttempts++;
-            MarkDirty();
-            return record.Attempts;
         }
 
         protected override void OnInitialize()
         {
             m_Data = Load();
-            Application.quitting += OnApplicationQuitting;
-            Application.focusChanged += OnApplicationFocusChanged;
         }
 
         protected override void OnDispose()
         {
-            Application.quitting -= OnApplicationQuitting;
-            Application.focusChanged -= OnApplicationFocusChanged;
             PersistIfDirty();
         }
 
-        private void OnApplicationQuitting()
+        private void ScheduleNextHeart()
         {
-            PersistIfDirty();
-        }
+            if (m_HeartRefillMinutes <= 0f)
+                return;
 
-        private void OnApplicationFocusChanged(bool hasFocus)
-        {
-            if (!hasFocus)
-                PersistIfDirty();
+            m_Data.NextHeartUnixUtc = NowUnix + HeartRefillSeconds;
+            MarkDirty();
         }
 
         private SpecialPowerSaveEntry FindPower(ESpecialPowerId id)
         {
-            return m_Data.SpecialPowers.Find(entry => entry.PowerId == (int)id);
+            List<SpecialPowerSaveEntry> powers = m_Data.SpecialPowers;
+            for (int i = 0; i < powers.Count; i++)
+            {
+                if (powers[i].PowerId == (int)id)
+                    return powers[i];
+            }
+
+            return null;
         }
 
         private SpecialPowerSaveEntry FindOrCreatePower(ESpecialPowerId id)
@@ -335,18 +272,16 @@ namespace PillFrenzy.Core
             return entry;
         }
 
-        private void UpsertScore(int levelIndex, int score, int completionSeconds)
-        {
-            LevelRecordData record = FindOrCreateLevelRecord(levelIndex);
-            if (score > record.Score)
-                record.Score = score;
-            if (completionSeconds > record.CompletionSeconds)
-                record.CompletionSeconds = completionSeconds;
-        }
-
         private LevelRecordData FindLevelRecord(int levelIndex)
         {
-            return m_Data.LevelScores.Find(record => record.LevelIndex == levelIndex);
+            List<LevelRecordData> records = m_Data.LevelScores;
+            for (int i = 0; i < records.Count; i++)
+            {
+                if (records[i].LevelIndex == levelIndex)
+                    return records[i];
+            }
+
+            return null;
         }
 
         private LevelRecordData FindOrCreateLevelRecord(int levelIndex)
@@ -360,31 +295,38 @@ namespace PillFrenzy.Core
             return record;
         }
 
-        private SaveData Load()
+        private void MarkDirty()
         {
-            SaveData data = TryRead(m_Path);
+            m_Dirty = true;
+        }
+
+        private static SaveData Load()
+        {
+            SaveData data = Read(FilePath);
             if (data == null)
             {
-                data = TryRead(m_BackupPath);
+                data = Read(BackupPath);
                 if (data != null)
                     Logger.Warning("Save file unreadable, recovered from backup.");
             }
 
-            return data != null ? Migrate(data) : CreateDefault();
+            if (data == null)
+                return new SaveData { Version = CurrentSaveVersion, CurrentLevelIndex = FirstLevelIndex };
+
+            data.LevelScores ??= new List<LevelRecordData>();
+            data.SpecialPowers ??= new List<SpecialPowerSaveEntry>();
+            data.SeenTutorials ??= new List<string>();
+            return data;
         }
 
-        private static SaveData TryRead(string path)
+        private static SaveData Read(string path)
         {
+            if (!File.Exists(path))
+                return null;
+
             try
             {
-                if (!File.Exists(path))
-                    return null;
-
-                string json = File.ReadAllText(path);
-                if (string.IsNullOrWhiteSpace(json))
-                    return null;
-
-                return JsonUtility.FromJson<SaveData>(json);
+                return JsonUtility.FromJson<SaveData>(File.ReadAllText(path));
             }
             catch (Exception exception)
             {
@@ -393,34 +335,18 @@ namespace PillFrenzy.Core
             }
         }
 
-        private static SaveData Migrate(SaveData data)
-        {
-            data.LevelScores ??= new List<LevelRecordData>();
-            data.SpecialPowers ??= new List<SpecialPowerSaveEntry>();
-
-            if (data.Version < CurrentSaveVersion)
-                data.Version = CurrentSaveVersion;
-
-            return data;
-        }
-
-        private void MarkDirty()
-        {
-            m_Dirty = true;
-        }
-
         private void PersistIfDirty()
         {
-            if (!m_Dirty || m_Data == null)
+            if (!m_Dirty)
                 return;
 
             try
             {
-                File.WriteAllText(m_TempPath, JsonUtility.ToJson(m_Data));
-                if (File.Exists(m_Path))
-                    File.Replace(m_TempPath, m_Path, m_BackupPath);
+                File.WriteAllText(TempPath, JsonUtility.ToJson(m_Data));
+                if (File.Exists(FilePath))
+                    File.Replace(TempPath, FilePath, BackupPath);
                 else
-                    File.Move(m_TempPath, m_Path);
+                    File.Move(TempPath, FilePath);
 
                 m_Dirty = false;
             }
@@ -428,15 +354,6 @@ namespace PillFrenzy.Core
             {
                 Logger.Error("Save write failed: " + exception.Message);
             }
-        }
-
-        private static SaveData CreateDefault()
-        {
-            return new SaveData
-            {
-                Version = CurrentSaveVersion,
-                CurrentLevelIndex = FirstLevelIndex
-            };
         }
     }
 }

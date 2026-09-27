@@ -30,10 +30,7 @@ namespace PillFrenzy.Core
                 return;
 
             m_Disposed = true;
-
-            if (!m_Cts.IsCancellationRequested)
-                m_Cts.Cancel();
-
+            m_Cts.Cancel();
             m_Cts.Dispose();
             Services.Dispose();
             EB.ClearAll();

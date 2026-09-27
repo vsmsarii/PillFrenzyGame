@@ -10,10 +10,7 @@ namespace PillFrenzy.Core
         long SecondsUntilNextHeart { get; }
         long ImmortalRemainingSeconds { get; }
 
-        int GetLevelScore(int levelIndex);
         int GetTotalScore();
-        int GetTotalAttempts();
-        int GetTotalCompletionSeconds();
         int GetLevelAttempts(int levelIndex);
         void CompleteLevel(int levelIndex, int score, int completionSeconds);
         int IncrementLevelAttempts(int levelIndex);
@@ -22,6 +19,9 @@ namespace PillFrenzy.Core
         bool TryConsumeSpecialPowerCharge(ESpecialPowerId id);
         void AddSpecialPowerCharges(ESpecialPowerId id, int amount);
         bool TryGrantInitialSpecialPower(ESpecialPowerId id, int charges);
+
+        bool HasSeenTutorial(string tutorialId);
+        void MarkTutorialSeen(string tutorialId);
 
         bool IsImmortalActive { get; }
         void GrantImmortalityMinutes(int minutes);

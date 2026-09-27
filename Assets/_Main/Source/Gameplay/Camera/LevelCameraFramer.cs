@@ -15,6 +15,8 @@ namespace PillFrenzy.Gameplay
         private readonly GlobalSettingsSO m_Settings;
         private readonly TargetCatalogSO m_TargetCatalog;
         private readonly List<Vector3> m_Samples = new();
+        private readonly bool m_FollowsLiveTuning;
+        private float m_FramedAspect;
 
         public LevelCameraFramer(
             Camera camera,
@@ -29,13 +31,21 @@ namespace PillFrenzy.Gameplay
             m_Definition = definition;
             m_Settings = settings;
             m_TargetCatalog = targetCatalog;
+            m_FollowsLiveTuning = Application.isEditor;
 
             CollectSamples();
-            LateTick(0f);
+            Frame();
         }
 
         public void LateTick(float deltaTime)
         {
+            if (m_FollowsLiveTuning || m_Camera.aspect != m_FramedAspect)
+                Frame();
+        }
+
+        private void Frame()
+        {
+            m_FramedAspect = m_Camera.aspect;
             Quaternion rotation = m_Definition.CameraRotation;
             m_Camera.fieldOfView = m_Definition.FieldOfView;
 

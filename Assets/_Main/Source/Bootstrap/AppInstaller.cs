@@ -11,19 +11,13 @@ namespace PillFrenzy.Bootstrap
     {
         public static GameContext CreateContext(GameObject host)
         {
-            Application.targetFrameRate = 60;
             QualitySettings.vSyncCount = 0;
             Screen.sleepTimeout = SleepTimeout.NeverSleep;
 
             GameLoop loop = new GameLoop();
             ServiceProvider services = new ServiceProvider(loop);
             GameContext context = new GameContext(loop, services);
-
-            GameRunner runner = host.GetComponent<GameRunner>();
-            if (runner == null)
-                runner = host.AddComponent<GameRunner>();
-
-            runner.Bind(context);
+            host.AddComponent<GameRunner>().Bind(context);
 
             IAssetProvider assets = new AssetProvider();
             ISaveService save = new SaveService();
@@ -39,6 +33,7 @@ namespace PillFrenzy.Bootstrap
             services.Register<IAudioService>(new AudioSystem(assets));
             services.Register<ISaveService>(save);
             services.Register<IIAPService>(new IAPService(assets, save));
+            services.Register<IAdService>(new AdService(assets, new DummyAdProvider(assets)));
             services.Register<IAnalyticsSystem>(analytics);
 
             return context;
@@ -48,38 +43,23 @@ namespace PillFrenzy.Bootstrap
         {
             CancellationToken token = context.CancellationToken;
             IAssetProvider assets = context.Services.Get<IAssetProvider>();
-            ISaveService save = context.Services.Get<ISaveService>();
 
             await assets.InitializeAsync(token);
             await context.Services.Get<IInputService>().InitializeAsync(token);
             await context.Services.Get<IAudioService>().InitializeAsync(token);
             await context.Services.Get<IIAPService>().InitializeAsync(token);
+            await context.Services.Get<IAdService>().InitializeAsync(token);
 
             GlobalSettingsSO globalSettings = await assets.LoadAsset<GlobalSettingsSO>(AddressableKeys.GlobalSettings, token);
-            if (globalSettings != null)
-            {
-                context.GlobalSettings = globalSettings;
-                Application.targetFrameRate = globalSettings.TargetFrameRate;
-                save.ConfigureHearts(globalSettings.DefaultHeartCount, globalSettings.HeartRefillMinutes);
-            }
-            else
-            {
-                Logger.Error("GlobalSettings asset missing.");
-            }
+            context.GlobalSettings = globalSettings;
+            Application.targetFrameRate = globalSettings.TargetFrameRate;
+            context.Services.Get<ISaveService>().ConfigureHearts(globalSettings.DefaultHeartCount, globalSettings.HeartRefillMinutes);
 
-            LevelManifestSO levelManifest = await assets.LoadAsset<LevelManifestSO>(AddressableKeys.LevelManifest, token);
-            if (levelManifest != null)
-                context.LevelCatalog = levelManifest;
-            else
-                Logger.Error("LevelManifest asset missing.");
+            context.LevelCatalog = await assets.LoadAsset<LevelManifestSO>(AddressableKeys.LevelManifest, token);
 
-            UIPanelCatalogSO catalog = await assets.LoadAsset<UIPanelCatalogSO>(AddressableKeys.UiPanelCatalog, token);
+            UIPanelCatalogSO panelCatalog = await assets.LoadAsset<UIPanelCatalogSO>(AddressableKeys.UiPanelCatalog, token);
             UiEventSystem.Ensure();
-            UIRoot uiRoot = Object.FindAnyObjectByType<UIRoot>();
-            if (uiRoot != null)
-                uiRoot.Initialize(assets, catalog);
-            else
-                Logger.Error("UIRoot missing in scene.");
+            Object.FindAnyObjectByType<UIRoot>().Initialize(assets, panelCatalog);
         }
     }
 }

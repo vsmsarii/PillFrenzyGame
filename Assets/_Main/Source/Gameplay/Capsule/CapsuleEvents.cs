@@ -10,6 +10,16 @@ namespace PillFrenzy.Gameplay
         }
     }
 
+    public readonly struct CapsuleSpawned
+    {
+        public readonly ECapsuleKind Kind;
+
+        public CapsuleSpawned(ECapsuleKind kind)
+        {
+            Kind = kind;
+        }
+    }
+
     public readonly struct AllTargetsFilled
     {
     }

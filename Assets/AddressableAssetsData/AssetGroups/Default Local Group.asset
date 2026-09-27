@@ -70,8 +70,18 @@ MonoBehaviour:
     m_ReadOnly: 0
     m_SerializedLabels: []
     FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 2f211b82e008f49beae425986cd1d077
+    m_Address: def.tutorial.catalog
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
   - m_GUID: 2fd2b779d1e24e3c8eef36b9dbf1db29
     m_Address: ui.lose
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 34200a52856e4c5da2d57e6448c50390
+    m_Address: ui.tutorial
     m_ReadOnly: 0
     m_SerializedLabels: []
     FlaggedDuringContentUpdateRestriction: 0
@@ -102,6 +112,16 @@ MonoBehaviour:
     FlaggedDuringContentUpdateRestriction: 0
   - m_GUID: 3e0591de32614792bd3ada3e2ecf2bba
     m_Address: def.global.settings
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 0e6123db29da44aaac1a6139ad7ff955
+    m_Address: def.ad.settings
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 95b565d376f74fc58e1415665d59b37c
+    m_Address: ui.dummy.ad
     m_ReadOnly: 0
     m_SerializedLabels: []
     FlaggedDuringContentUpdateRestriction: 0
@@ -232,6 +252,11 @@ MonoBehaviour:
     FlaggedDuringContentUpdateRestriction: 0
   - m_GUID: ddc2fe41763048aaa50301162d4a2b2d
     m_Address: prefab.target.6
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: e8a10c6f9f824bf6985c1669a8b90707
+    m_Address: ui.tutorial.overlay
     m_ReadOnly: 0
     m_SerializedLabels: []
     FlaggedDuringContentUpdateRestriction: 0

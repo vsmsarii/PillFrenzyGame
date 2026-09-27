@@ -21,10 +21,11 @@ namespace PillFrenzy.UI
         private Action m_Shop;
         private Action m_Settings;
         private ISaveService m_Save;
-        private int m_LevelNumber = 1;
+        private int m_LevelNumber;
         private bool m_CanPlay;
+        private int m_ShownHearts = -1;
         private bool m_PlayRequested;
-        private long m_LastRefreshSecond = -1;
+        private float m_NextRefreshTime;
 
         private void Awake()
         {
@@ -38,21 +39,14 @@ namespace PillFrenzy.UI
             if (m_Save == null)
                 return;
 
-            long now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
-            if (now == m_LastRefreshSecond)
+            if (Time.unscaledTime < m_NextRefreshTime)
                 return;
 
-            m_LastRefreshSecond = now;
+            m_NextRefreshTime = Time.unscaledTime + 1f;
             Refresh();
         }
 
-        public void Bind(
-            ISaveService save,
-            int levelNumber,
-            int totalScore,
-            Action play,
-            Action shop,
-            Action settings)
+        public void Bind(ISaveService save, int levelNumber, Action play, Action shop, Action settings)
         {
             m_Save = save;
             m_Play = play;
@@ -60,10 +54,9 @@ namespace PillFrenzy.UI
             m_Settings = settings;
             m_LevelNumber = levelNumber;
             m_PlayRequested = false;
+            m_ShownHearts = -1;
 
-            m_TotalScore.text = "Score " + totalScore;
-            m_ShopButton.gameObject.SetActive(shop != null);
-            m_SettingsButton.gameObject.SetActive(settings != null);
+            m_TotalScore.text = "Score " + save.GetTotalScore();
 
             Refresh();
         }
@@ -73,37 +66,67 @@ namespace PillFrenzy.UI
             m_Save.RefreshHearts();
             int hearts = m_Save.Hearts;
             int maxHearts = m_Save.MaxHearts;
-            m_CanPlay = hearts > 0;
+            bool canPlay = hearts > 0;
 
-            m_Hearts.text = FormatHearts(hearts, maxHearts);
-            m_HeartTimer.text = FormatHeartTimer(hearts, maxHearts, m_Save.SecondsUntilNextHeart);
+            if (hearts != m_ShownHearts || canPlay != m_CanPlay)
+            {
+                m_ShownHearts = hearts;
+                m_CanPlay = canPlay;
+                ShowHearts(hearts, maxHearts);
+                ShowPlayLabel();
+            }
+
+            ShowHeartTimer(hearts, maxHearts, m_Save.SecondsUntilNextHeart);
             m_PlayButton.interactable = m_CanPlay && !m_PlayRequested;
-            m_PlayLabel.text = m_CanPlay ? "LEVEL " + m_LevelNumber : "NO HEARTS";
             UiText.ShowImmortal(m_Immortal, m_Save.ImmortalRemainingSeconds);
         }
 
-        private static string FormatHearts(int hearts, int maxHearts)
+        private void ShowHearts(int hearts, int maxHearts)
         {
-            if (maxHearts <= 0)
-                return "Hearts " + hearts;
-
+            UiText.Begin();
+            UiText.Append("Hearts ");
             if (hearts > maxHearts)
-                return "Hearts " + maxHearts + "(+" + (hearts - maxHearts) + ")";
+            {
+                UiText.Append(maxHearts);
+                UiText.Append("(+");
+                UiText.Append(hearts - maxHearts);
+                UiText.Append(')');
+            }
+            else
+            {
+                UiText.Append(hearts);
+                UiText.Append('/');
+                UiText.Append(maxHearts);
+            }
 
-            return "Hearts " + hearts + "/" + maxHearts;
+            UiText.ApplyTo(m_Hearts);
         }
 
-        private static string FormatHeartTimer(int hearts, int maxHearts, long secondsUntilNext)
+        private void ShowPlayLabel()
+        {
+            if (m_CanPlay)
+                UiText.SetValue(m_PlayLabel, "LEVEL ", m_LevelNumber);
+            else
+                m_PlayLabel.text = "NO HEARTS";
+        }
+
+        private void ShowHeartTimer(int hearts, int maxHearts, long secondsUntilNext)
         {
             if (hearts < maxHearts && secondsUntilNext > 0)
-                return "Next heart " + UiText.Clock(secondsUntilNext);
+            {
+                UiText.Begin();
+                UiText.Append("Next heart ");
+                UiText.AppendClock(secondsUntilNext);
+                UiText.ApplyTo(m_HeartTimer);
+                return;
+            }
 
-            return hearts <= 0 ? "No hearts - visit Shop" : string.Empty;
+            m_HeartTimer.text = hearts <= 0 ? "No hearts - visit Shop" : string.Empty;
         }
 
         private void OnPlayClicked()
         {
-            if (!m_CanPlay || m_PlayRequested)
+            if (m_PlayRequested)
                 return;
 
             m_PlayRequested = true;
@@ -113,12 +136,12 @@ namespace PillFrenzy.UI
 
         private void OnShopClicked()
         {
-            m_Shop?.Invoke();
+            m_Shop.Invoke();
         }
 
         private void OnSettingsClicked()
         {
-            m_Settings?.Invoke();
+            m_Settings.Invoke();
         }
     }
 }

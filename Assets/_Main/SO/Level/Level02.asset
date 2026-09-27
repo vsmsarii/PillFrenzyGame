@@ -24,7 +24,7 @@ MonoBehaviour:
   m_NormalDefinition: {fileID: 11400000, guid: 3d1ebbed3015415f953b1db11acdd51f, type: 2}
   m_GoldChance: 0.12
   m_GoldDefinition: {fileID: 11400000, guid: 8ed688fa1bd6444baa367e646f2c210c, type: 2}
-  m_PoisonChance: 0.12
+  m_PoisonChance: 0
   m_PoisonDefinition: {fileID: 11400000, guid: f538707661c54eb29f1a4e9a53f894ac, type: 2}
   m_TargetQueue:
   - m_Color: {fileID: 11400000, guid: f90ab421e58854944b5db7bad643340c, type: 2}
@@ -37,3 +37,8 @@ MonoBehaviour:
     m_SubObjectType: 
     m_SubObjectGUID: 
     m_EditorAssetChanged: 0
+  m_CameraDistance: 0
+  m_CameraPitch: 47.46
+  m_CameraYaw: 0
+  m_FieldOfView: 60
+  m_FramingPadding: 0.75

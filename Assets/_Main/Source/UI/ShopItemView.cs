@@ -18,6 +18,11 @@ namespace PillFrenzy.UI
         private string m_ProductKey;
         private Func<string, UniTask<bool>> m_Purchase;
 
+        private void Awake()
+        {
+            m_BuyButton.onClick.AddListener(OnBuyClicked);
+        }
+
         public void Bind(IAPCatalogEntry entry, Func<string, UniTask<bool>> purchase)
         {
             m_ProductKey = entry.Key;
@@ -28,9 +33,6 @@ namespace PillFrenzy.UI
             m_Title.text = entry.DisplayName;
             m_Description.text = entry.Description;
             m_Price.text = entry.PriceLabel;
-
-            m_BuyButton.onClick.RemoveListener(OnBuyClicked);
-            m_BuyButton.onClick.AddListener(OnBuyClicked);
         }
 
         private void OnBuyClicked()

@@ -11,9 +11,13 @@ namespace PillFrenzy.Gameplay
         private readonly GameplayFeedback m_Feedback;
 
         private ELevelPhase m_Phase;
+        private EPauseReason m_PauseReasons;
         private float m_Elapsed;
 
         public ELevelPhase Phase => m_Phase;
+        public bool IsPaused => m_PauseReasons != EPauseReason.None;
+        public bool IsSimulating => m_Phase == ELevelPhase.Playing && !IsPaused;
+        public bool HasEnded => m_Phase == ELevelPhase.Complete || m_Phase == ELevelPhase.Fail;
         public float Elapsed => m_Elapsed;
         public int LevelIndex => m_LevelIndex;
 
@@ -32,35 +36,37 @@ namespace PillFrenzy.Gameplay
             EB.Gameplay.Add<RunHealthDepleted>(OnRunHealthDepleted);
         }
 
-        public void StartRun(LevelDefinitionSO definition)
+        public void EnterIntro()
         {
-            if (definition == null)
-                return;
+            TryEnter(ELevelPhase.Intro);
+        }
 
-            m_Phase = ELevelPhase.Playing;
+        public bool StartRun(LevelDefinitionSO definition)
+        {
+            if (!TryEnter(ELevelPhase.Playing))
+                return false;
+
             m_Elapsed = 0f;
-
             m_Save.IncrementLevelAttempts(m_LevelIndex);
 
             EB.Gameplay.Invoke(new RunStarted(definition));
             EB.Analytics.Invoke(new MatchStartAnalytics(m_LevelIndex));
+            return true;
         }
 
-        public void Pause()
+        public void Pause(EPauseReason reason)
         {
-            if (m_Phase == ELevelPhase.Playing)
-                m_Phase = ELevelPhase.Paused;
+            m_PauseReasons |= reason;
         }
 
-        public void Resume()
+        public void Resume(EPauseReason reason)
         {
-            if (m_Phase == ELevelPhase.Paused)
-                m_Phase = ELevelPhase.Playing;
+            m_PauseReasons &= ~reason;
         }
 
         public void Tick(float deltaTime)
         {
-            if (m_Phase != ELevelPhase.Playing)
+            if (!IsSimulating)
                 return;
 
             m_Elapsed += deltaTime;
@@ -70,6 +76,31 @@ namespace PillFrenzy.Gameplay
         {
             EB.Gameplay.Remove<AllTargetsFilled>(OnAllTargetsFilled);
             EB.Gameplay.Remove<RunHealthDepleted>(OnRunHealthDepleted);
+        }
+
+        private bool TryEnter(ELevelPhase next)
+        {
+            if (!IsAllowed(m_Phase, next))
+            {
+                Logger.Warning("Level phase transition rejected: " + m_Phase + " -> " + next);
+                return false;
+            }
+
+            m_Phase = next;
+            return true;
+        }
+
+        private static bool IsAllowed(ELevelPhase from, ELevelPhase to)
+        {
+            return (from, to) switch
+            {
+                (ELevelPhase.None, ELevelPhase.Intro) => true,
+                (ELevelPhase.None, ELevelPhase.Playing) => true,
+                (ELevelPhase.Intro, ELevelPhase.Playing) => true,
+                (ELevelPhase.Playing, ELevelPhase.Complete) => true,
+                (ELevelPhase.Playing, ELevelPhase.Fail) => true,
+                _ => false
+            };
         }
 
         private void OnAllTargetsFilled(AllTargetsFilled evt)
@@ -84,10 +115,9 @@ namespace PillFrenzy.Gameplay
 
         private void Complete()
         {
-            if (m_Phase != ELevelPhase.Playing)
+            if (!TryEnter(ELevelPhase.Complete))
                 return;
 
-            m_Phase = ELevelPhase.Complete;
             EB.Gameplay.Invoke(new RunFinished(true));
 
             m_Save.CompleteLevel(m_LevelIndex, m_Score.Score, Mathf.RoundToInt(m_Elapsed));
@@ -98,10 +128,9 @@ namespace PillFrenzy.Gameplay
 
         private void Fail()
         {
-            if (m_Phase != ELevelPhase.Playing)
+            if (!TryEnter(ELevelPhase.Fail))
                 return;
 
-            m_Phase = ELevelPhase.Fail;
             EB.Gameplay.Invoke(new RunFinished(false));
 
             m_Save.TrySpendHeart();

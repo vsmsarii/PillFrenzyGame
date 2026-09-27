@@ -1,3 +1,4 @@
+using System;
 using Cysharp.Threading.Tasks;
 using PillFrenzy.Core;
 using PillFrenzy.Gameplay;
@@ -9,14 +10,12 @@ namespace PillFrenzy.Bootstrap
     public sealed class BootGameplay : MonoBehaviour
     {
         private GameContext m_Context;
+        private ISaveService m_Save;
         private GameplaySession m_Session;
+        private GameplayPauseMenu m_PauseMenu;
         private int m_LevelIndex;
-        private bool m_ReturnToMenu;
-        private RunEnded m_LastRunEnded;
-        private bool m_HasRunEnded;
-        private bool m_SettingsOpen;
 
-        private void Awake()
+        private void Start()
         {
             if (GameRunner.Instance == null)
             {
@@ -25,204 +24,79 @@ namespace PillFrenzy.Bootstrap
             }
 
             m_Context = GameRunner.Instance.Context;
-        }
-
-        private void Start()
-        {
-            if (m_Context == null)
-                return;
-
+            m_Save = m_Context.Services.Get<ISaveService>();
             RunAsync().Forget();
         }
 
         private async UniTaskVoid RunAsync()
         {
-            ISaveService save = m_Context.Services.Get<ISaveService>();
-
-            m_LevelIndex = m_Context.GameplayLevelIndex >= 0 ? m_Context.GameplayLevelIndex : save.CurrentLevelIndex;
-            if (m_Context.LevelCatalog != null && m_LevelIndex > m_Context.LevelCatalog.LastLevelIndex)
-                m_LevelIndex = m_Context.LevelCatalog.LastLevelIndex;
-            if (m_LevelIndex < 0)
-                m_LevelIndex = 0;
+            int requestedIndex = m_Context.GameplayLevelIndex >= 0 ? m_Context.GameplayLevelIndex : m_Save.CurrentLevelIndex;
+            m_LevelIndex = Mathf.Min(requestedIndex, m_Context.LevelCatalog.LastLevelIndex);
 
             m_Session = new GameplaySession(m_Context);
+            m_PauseMenu = new GameplayPauseMenu(m_Context.Services.Get<IAudioService>(), () => QuitMatchToMenu().Forget());
+            m_PauseMenu.Track(m_Session);
+
             if (!await m_Session.LoadAsync(m_LevelIndex))
                 return;
 
-            m_ReturnToMenu = m_Session.Definition.ReturnToMenu;
+            if (!await GameplayScreens.OpenHudAsync(m_Session, m_LevelIndex + 1, m_Save, m_PauseMenu.OpenFromButton))
+                return;
 
-            EB.Presentation.Add<RunEnded>(OnRunEnded);
-            EB.Presentation.Add<UIPanelOpened>(OnPanelOpened);
-            EB.Presentation.Add<ApplicationPauseChanged>(OnApplicationPauseChanged);
-            EB.Presentation.Invoke(new OpenUIPanelEvent(EUIPanel.Gameplay, 0));
+            UIPanels.HideLoading();
+
+            if (!await m_Session.StartAsync())
+                return;
+
+            (bool canceled, RunEnded result) = await m_Session.WaitForRunEndAsync();
+            if (canceled)
+                return;
+
+            m_Save.RefreshHearts();
+            bool hasNextLevel = !m_Session.Definition.ReturnToMenu && m_LevelIndex < m_Context.LevelCatalog.LastLevelIndex;
+            Action onContinue = () => ContinueAfterWin(hasNextLevel).Forget();
+            Action onRetry = m_Save.Hearts > 0 ? () => LoadLevel(m_LevelIndex).Forget() : null;
+
+            await GameplayScreens.ShowResultAsync(result, onContinue, onRetry, () => GoToMenu().Forget(), m_Session.Token);
         }
 
-        private void OnRunEnded(RunEnded evt)
+        private async UniTaskVoid ContinueAfterWin(bool hasNextLevel)
         {
-            m_LastRunEnded = evt;
-            m_HasRunEnded = true;
-            EUIPanel panel = evt.IsComplete ? EUIPanel.Win : EUIPanel.Lose;
-            EB.Presentation.Invoke(new OpenUIPanelEvent(panel, 1));
-        }
+            IAdService ads = m_Context.Services.Get<IAdService>();
+            if (ads.IsDueAfterLevel(m_LevelIndex))
+                await ads.ShowAsync(m_LevelIndex, m_Session.Token);
 
-        private void OnPanelOpened(UIPanelOpened opened)
-        {
-            if (opened.Instance == null)
-                return;
-
-            if (opened.Panel == EUIPanel.Gameplay)
-            {
-                m_Session.BeginRun();
-
-                GameplayCanvasUI gameplayUi = opened.Instance.GetComponent<GameplayCanvasUI>();
-                if (gameplayUi != null)
-                {
-                    gameplayUi.BindLevel(m_LevelIndex + 1);
-                    if (m_Session.Powers != null)
-                        gameplayUi.BindPowers(m_Session.Powers, m_Context.Services.Get<ISaveService>());
-                    gameplayUi.BindSettings(OpenSettings);
-                }
-
-                UIPanels.HideLoading();
-                return;
-            }
-
-            if (opened.Panel == EUIPanel.Settings)
-            {
-                SettingsCanvasUI settings = opened.Instance.GetComponent<SettingsCanvasUI>();
-                if (settings != null)
-                {
-                    settings.Bind(
-                        m_Context.Services.Get<IAudioService>(),
-                        CloseSettings,
-                        () => QuitMatchToMenu().Forget());
-                }
-
-                return;
-            }
-
-            if (!m_HasRunEnded)
-                return;
-
-            if (opened.Panel == EUIPanel.Win && m_LastRunEnded.IsComplete)
-            {
-                WinCanvasUI win = opened.Instance.GetComponent<WinCanvasUI>();
-                if (win != null)
-                {
-                    int lastLevelIndex = m_Context.LevelCatalog != null ? m_Context.LevelCatalog.LastLevelIndex : m_LevelIndex;
-                    bool goNext = !m_ReturnToMenu && m_LevelIndex < lastLevelIndex;
-                    win.Show(
-                        m_LastRunEnded.Score,
-                        m_LastRunEnded.BestCombo,
-                        goNext ? () => Next().Forget() : () => GoToMenu().Forget());
-                }
-
-                return;
-            }
-
-            if (opened.Panel != EUIPanel.Lose || m_LastRunEnded.IsComplete)
-                return;
-
-            LoseCanvasUI lose = opened.Instance.GetComponent<LoseCanvasUI>();
-            if (lose != null)
-            {
-                ISaveService save = m_Context.Services.Get<ISaveService>();
-                save.RefreshHearts();
-                lose.Show(
-                    m_LastRunEnded.Score,
-                    m_LastRunEnded.BestCombo,
-                    save.Hearts > 0 ? () => Retry().Forget() : null,
-                    () => GoToMenu().Forget());
-            }
-        }
-
-        private void OpenSettings()
-        {
-            m_Context.Services.Get<IAudioService>().Play(EAudioName.SfxUiClick);
-            ShowPausePanel();
-        }
-
-        private void ShowPausePanel()
-        {
-            if (m_SettingsOpen)
-                return;
-
-            m_SettingsOpen = true;
-            m_Session?.Pause();
-            EB.Presentation.Invoke(new OpenUIPanelEvent(EUIPanel.Settings, 1, additive: true));
-        }
-
-        private void CloseSettings()
-        {
-            m_SettingsOpen = false;
-            UIPanels.Close(EUIPanel.Settings);
-            m_Session?.Resume();
-        }
-
-        private void OnApplicationPauseChanged(ApplicationPauseChanged evt)
-        {
-            if (m_Session == null || !m_Session.IsLoaded || m_HasRunEnded)
-                return;
-
-            if (evt.Paused)
-            {
-                m_Session.Pause();
-                return;
-            }
-
-            ShowPausePanel();
-        }
-
-        private async UniTaskVoid Next()
-        {
-            m_Context.GameplayLevelIndex = m_LevelIndex + 1;
-            ISceneService scenes = m_Context.Services.Get<ISceneService>();
-            await scenes.Reload(ESceneName.Gameplay, m_Context.CancellationToken);
-        }
-
-        private async UniTaskVoid Retry()
-        {
-            ISaveService save = m_Context.Services.Get<ISaveService>();
-            save.RefreshHearts();
-            if (save.Hearts <= 0)
-            {
-                GoToMenu().Forget();
-                return;
-            }
-
-            m_Context.GameplayLevelIndex = m_LevelIndex;
-            ISceneService scenes = m_Context.Services.Get<ISceneService>();
-            await scenes.Reload(ESceneName.Gameplay, m_Context.CancellationToken);
+            if (hasNextLevel)
+                await LoadLevel(m_LevelIndex + 1);
+            else
+                await GoToMenu();
         }
 
         private async UniTaskVoid QuitMatchToMenu()
         {
-            if (!m_HasRunEnded)
-            {
-                ISaveService save = m_Context.Services.Get<ISaveService>();
-                save.TrySpendHeart();
-            }
+            if (m_Session.IsRunActive)
+                m_Save.TrySpendHeart();
 
             await GoToMenu();
         }
 
-        private async UniTask GoToMenu()
+        private UniTask LoadLevel(int levelIndex)
+        {
+            m_Context.GameplayLevelIndex = levelIndex;
+            return m_Context.Services.Get<ISceneService>().Load(ESceneName.Gameplay, m_Context.CancellationToken);
+        }
+
+        private UniTask GoToMenu()
         {
             m_Context.GameplayLevelIndex = -1;
-            ISceneService scenes = m_Context.Services.Get<ISceneService>();
-            await scenes.Load(ESceneName.Menu, m_Context.CancellationToken);
+            return m_Context.Services.Get<ISceneService>().Load(ESceneName.Menu, m_Context.CancellationToken);
         }
 
         private void OnDestroy()
         {
-            EB.Presentation.Remove<RunEnded>(OnRunEnded);
-            EB.Presentation.Remove<UIPanelOpened>(OnPanelOpened);
-            EB.Presentation.Remove<ApplicationPauseChanged>(OnApplicationPauseChanged);
             EB.Presentation.Invoke(new CloseAllUIPanelsEvent(1));
-
-            m_SettingsOpen = false;
+            m_PauseMenu?.Dispose();
             m_Session?.Shutdown();
-            m_Session = null;
         }
     }
 }

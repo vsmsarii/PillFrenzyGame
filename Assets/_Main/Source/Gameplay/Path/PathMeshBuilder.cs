@@ -29,6 +29,7 @@ namespace PillFrenzy.Gameplay
         private readonly List<Vector3> m_SourceNormals = new();
         private readonly List<Vector2> m_SourceUvs = new();
         private readonly List<int> m_SourceTriangles = new();
+        private readonly List<int> m_SubMeshTriangles = new();
 
         public void Build(Spline spline, PathMeshSettings settings, Mesh target)
         {
@@ -186,7 +187,10 @@ namespace PillFrenzy.Gameplay
             source.GetUVs(0, m_SourceUvs);
             m_SourceTriangles.Clear();
             for (int subMesh = 0; subMesh < source.subMeshCount; subMesh++)
-                m_SourceTriangles.AddRange(source.GetTriangles(subMesh));
+            {
+                source.GetTriangles(m_SubMeshTriangles, subMesh);
+                m_SourceTriangles.AddRange(m_SubMeshTriangles);
+            }
 
             while (m_SourceNormals.Count < m_SourceVertices.Count)
                 m_SourceNormals.Add(Vector3.up);

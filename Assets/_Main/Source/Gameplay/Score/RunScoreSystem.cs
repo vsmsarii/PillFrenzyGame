@@ -1,4 +1,5 @@
 using PillFrenzy.Core;
+using UnityEngine;
 
 namespace PillFrenzy.Gameplay
 {
@@ -39,11 +40,11 @@ namespace PillFrenzy.Gameplay
         private void OnRunStarted(RunStarted evt)
         {
             m_Definition = evt.Definition;
-            m_Active = m_Definition != null;
+            m_Active = true;
             m_Score = 0;
             m_Combo = 0;
             m_BestCombo = 0;
-            m_Health = m_Definition != null ? m_Definition.StartingHealth : 0;
+            m_Health = m_Definition.StartingHealth;
             PublishHud();
         }
 
@@ -74,8 +75,7 @@ namespace PillFrenzy.Gameplay
         private void OnCorrect()
         {
             m_Combo++;
-            if (m_Combo > m_BestCombo)
-                m_BestCombo = m_Combo;
+            m_BestCombo = Mathf.Max(m_BestCombo, m_Combo);
 
             m_Score += m_Definition.ScorePerCorrect * m_Combo;
             PublishHud();
@@ -83,23 +83,17 @@ namespace PillFrenzy.Gameplay
 
         private void OnGold()
         {
-            int multiplier = m_Combo > 0 ? m_Combo : 1;
-            m_Score += m_Definition.ScorePerCorrect * multiplier;
+            m_Score += m_Definition.ScorePerCorrect * Mathf.Max(1, m_Combo);
             PublishHud();
         }
 
         private void OnPoison()
         {
             m_Combo = 0;
-            if (m_Save.IsImmortalActive)
-            {
-                PublishHud();
-                return;
-            }
+            if (!m_Save.IsImmortalActive)
+                m_Health--;
 
-            m_Health--;
             PublishHud();
-
             if (m_Health <= 0)
                 EB.Gameplay.Invoke(new RunHealthDepleted());
         }

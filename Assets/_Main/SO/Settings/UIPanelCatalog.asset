@@ -55,3 +55,15 @@ MonoBehaviour:
       m_SubObjectName: 
       m_SubObjectType: 
       m_EditorAssetChanged: 0
+  - m_Panel: 9
+    m_Prefab:
+      m_AssetGUID: e8a10c6f9f824bf6985c1669a8b90707
+      m_SubObjectName: 
+      m_SubObjectType: 
+      m_EditorAssetChanged: 0
+  - m_Panel: 8
+    m_Prefab:
+      m_AssetGUID: 34200a52856e4c5da2d57e6448c50390
+      m_SubObjectName: 
+      m_SubObjectType: 
+      m_EditorAssetChanged: 0

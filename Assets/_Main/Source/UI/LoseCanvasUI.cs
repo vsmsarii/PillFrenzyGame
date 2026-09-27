@@ -7,7 +7,6 @@ namespace PillFrenzy.UI
 {
     public sealed class LoseCanvasUI : MonoBehaviour
     {
-        [SerializeField] private TMP_Text m_Title;
         [SerializeField] private TMP_Text m_Detail;
         [SerializeField] private Button m_RetryButton;
         [SerializeField] private Button m_MenuButton;
@@ -25,26 +24,27 @@ namespace PillFrenzy.UI
         {
             m_Retry = retry;
             m_Menu = menu;
-
-            m_Title.text = "FAIL";
             m_Detail.text = "Score " + score + "   Best combo x" + bestCombo;
             m_RetryButton.interactable = retry != null;
-            m_RetryButton.GetComponentInChildren<TMP_Text>().text = "Retry";
-            m_MenuButton.gameObject.SetActive(true);
+            m_MenuButton.interactable = true;
         }
 
         private void OnRetryClicked()
         {
-            Action retry = m_Retry;
-            m_Retry = null;
-            retry?.Invoke();
+            DisableButtons();
+            m_Retry.Invoke();
         }
 
         private void OnMenuClicked()
         {
-            Action menu = m_Menu;
-            m_Menu = null;
-            menu?.Invoke();
+            DisableButtons();
+            m_Menu.Invoke();
+        }
+
+        private void DisableButtons()
+        {
+            m_RetryButton.interactable = false;
+            m_MenuButton.interactable = false;
         }
     }
 }

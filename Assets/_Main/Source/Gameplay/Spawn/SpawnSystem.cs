@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.Threading;
 using Cysharp.Threading.Tasks;
+using PillFrenzy.Core;
 
 namespace PillFrenzy.Gameplay
 {
@@ -23,30 +24,22 @@ namespace PillFrenzy.Gameplay
                 return;
 
             m_Capsules.Register(controller);
+            EB.Gameplay.Invoke(new CapsuleSpawned(data.Definition.Kind));
         }
 
         public void Detach(CapsuleController controller)
         {
-            if (controller == null)
-                return;
-
             m_Capsules.Unregister(controller);
         }
 
         public void Despawn(CapsuleController controller)
         {
-            if (controller == null)
-                return;
-
             m_Capsules.Unregister(controller);
             m_Factory.Release(controller);
         }
 
         public void DespawnSeated(TargetSystem targets)
         {
-            if (targets == null)
-                return;
-
             targets.CollectSeated(m_DespawnBuffer);
             for (int i = 0; i < m_DespawnBuffer.Count; i++)
                 Despawn(m_DespawnBuffer[i]);

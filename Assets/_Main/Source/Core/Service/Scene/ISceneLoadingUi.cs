@@ -7,6 +7,5 @@ namespace PillFrenzy.Core
     {
         UniTask ShowAsync(CancellationToken cancellationToken = default);
         void SetProgress(float progress);
-        void Hide();
     }
 }

@@ -7,10 +7,10 @@ namespace PillFrenzy.Core
 {
     public sealed class InputService : Service, IInputService
     {
-        private readonly IAssetProvider m_Assets;
         private const string PressActionName = "Gameplay/Tap";
 
-        private InputActionAsset m_Asset;
+        private readonly IAssetProvider m_Assets;
+
         private InputAction m_Press;
         private bool m_HasPending;
         private Vector2 m_PendingPosition;
@@ -22,24 +22,8 @@ namespace PillFrenzy.Core
 
         public async UniTask InitializeAsync(CancellationToken cancellationToken = default)
         {
-            if (m_Press != null)
-                return;
-
-            m_Asset = await m_Assets.LoadAsset<InputActionAsset>(AddressableKeys.InputActions, cancellationToken);
-            if (m_Asset == null)
-            {
-                Logger.Error("Input action asset failed to load: " + AddressableKeys.InputActions);
-                return;
-            }
-
-            m_Press = m_Asset.FindAction(PressActionName, false);
-            if (m_Press == null)
-            {
-                Logger.Error("Input action not found: " + PressActionName);
-                m_Asset = null;
-                return;
-            }
-
+            InputActionAsset actions = await m_Assets.LoadAsset<InputActionAsset>(AddressableKeys.InputActions, cancellationToken);
+            m_Press = actions.FindAction(PressActionName, true);
             m_Press.started += OnPressed;
             m_Press.Enable();
         }
@@ -66,7 +50,6 @@ namespace PillFrenzy.Core
                 m_Press = null;
             }
 
-            m_Asset = null;
             m_HasPending = false;
             m_Assets.ReleaseAsset(AddressableKeys.InputActions);
         }
@@ -74,21 +57,7 @@ namespace PillFrenzy.Core
         private void OnPressed(InputAction.CallbackContext context)
         {
             m_HasPending = true;
-            m_PendingPosition = ReadPointerPosition();
-        }
-
-        private static Vector2 ReadPointerPosition()
-        {
-            if (Pointer.current != null)
-                return Pointer.current.position.ReadValue();
-
-            if (Mouse.current != null)
-                return Mouse.current.position.ReadValue();
-
-            if (Touchscreen.current != null)
-                return Touchscreen.current.primaryTouch.position.ReadValue();
-
-            return Vector2.zero;
+            m_PendingPosition = Pointer.current.position.ReadValue();
         }
     }
 }

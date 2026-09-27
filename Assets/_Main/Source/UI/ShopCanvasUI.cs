@@ -43,17 +43,10 @@ namespace PillFrenzy.UI
             for (int i = m_Content.childCount - 1; i >= 0; i--)
                 Destroy(m_Content.GetChild(i).gameObject);
 
-            if (m_Catalog == null || m_Catalog.Entries == null)
-                return;
-
-            for (int i = 0; i < m_Catalog.Entries.Length; i++)
+            foreach (IAPCatalogEntry entry in m_Catalog.Entries)
             {
-                IAPCatalogEntry entry = m_Catalog.Entries[i];
-                if (string.IsNullOrEmpty(entry.Key) || !IsVisible(entry))
-                    continue;
-
-                ShopItemView item = Instantiate(m_ItemPrefab, m_Content);
-                item.Bind(entry, key => m_Iap.PurchaseAsync(key));
+                if (IsVisible(entry))
+                    Instantiate(m_ItemPrefab, m_Content).Bind(entry, key => m_Iap.PurchaseAsync(key));
             }
         }
 
@@ -62,10 +55,8 @@ namespace PillFrenzy.UI
             if (entry.RewardType != EIAPRewardType.SpecialPowerCharges)
                 return true;
 
-            if (m_Powers == null || !m_Powers.TryGet(entry.PowerId, out SpecialPowerCatalogEntry power))
-                return false;
-
-            return m_Save.CurrentLevelNumber >= power.UnlockLevel;
+            return m_Powers.TryGet(entry.PowerId, out SpecialPowerCatalogEntry power)
+                && m_Save.CurrentLevelNumber >= power.UnlockLevel;
         }
 
         private void OnCloseClicked()

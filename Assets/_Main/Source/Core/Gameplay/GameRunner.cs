@@ -6,38 +6,33 @@ namespace PillFrenzy.Core
     {
         public static GameRunner Instance { get; private set; }
 
-        private GameContext m_Context;
-
-        public GameContext Context => m_Context;
+        public GameContext Context { get; private set; }
 
         public void Bind(GameContext context)
         {
-            m_Context = context;
+            Context = context;
             Instance = this;
         }
 
         private void Update()
         {
-            m_Context?.GameLoop.Tick(Time.deltaTime);
+            Context.GameLoop.Tick(Time.deltaTime);
         }
 
         private void FixedUpdate()
         {
-            m_Context?.GameLoop.FixedTick(Time.fixedDeltaTime);
+            Context.GameLoop.FixedTick(Time.fixedDeltaTime);
         }
 
         private void LateUpdate()
         {
-            m_Context?.GameLoop.LateTick(Time.deltaTime);
+            Context.GameLoop.LateTick(Time.deltaTime);
         }
 
         private void OnApplicationPause(bool paused)
         {
-            if (m_Context == null)
-                return;
-
             if (paused)
-                m_Context.Services.Get<ISaveService>().FlushPending();
+                Context.Services.Get<ISaveService>().FlushPending();
 
             EB.Presentation.Invoke(new ApplicationPauseChanged(paused));
         }
@@ -47,8 +42,8 @@ namespace PillFrenzy.Core
             if (Instance == this)
                 Instance = null;
 
-            m_Context?.Dispose();
-            m_Context = null;
+            Context?.Dispose();
+            Context = null;
         }
     }
 }

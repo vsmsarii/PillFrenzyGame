@@ -12,7 +12,10 @@ namespace PillFrenzy.Core
         public const string FeedbackSettings = "def.feedback.settings";
         public const string AudioCatalog = "def.audio.catalog";
         public const string VfxCatalog = "def.vfx.catalog";
+        public const string TutorialCatalog = "def.tutorial.catalog";
+        public const string AdSettings = "def.ad.settings";
         public const string UiPanelCatalog = "ui.panel.catalog";
+        public const string DummyAdView = "ui.dummy.ad";
 
         public static string DefLevel(int levelIndex)
         {

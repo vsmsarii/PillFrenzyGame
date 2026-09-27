@@ -1,5 +1,4 @@
 using System.Collections.Generic;
-using System.IO;
 using System.Text;
 using PillFrenzy.Core;
 using PillFrenzy.Gameplay;
@@ -49,7 +48,7 @@ namespace PillFrenzy.Editor
             EditorGUILayout.LabelField("Target Queue", EditorStyles.boldLabel);
 
             TargetQuota[] queue = definition.TargetQueue;
-            if (queue == null || queue.Length == 0)
+            if (queue.Length == 0)
             {
                 EditorGUILayout.HelpBox("Target queue is empty. The level can never complete.", MessageType.Error);
                 return;
@@ -95,15 +94,12 @@ namespace PillFrenzy.Editor
 
         private static LevelLayout LoadLayout(LevelDefinitionSO definition)
         {
-            GameObject prefab = definition.Layout != null ? definition.Layout.editorAsset : null;
+            GameObject prefab = definition.Layout.editorAsset;
             return prefab != null ? prefab.GetComponent<LevelLayout>() : null;
         }
 
         private static void CreateNextLevel(LevelDefinitionSO source)
         {
-            if (source == null)
-                return;
-
             LevelManifestSO manifest = LevelAuthoring.FindManifest();
             if (manifest == null)
             {
@@ -112,15 +108,7 @@ namespace PillFrenzy.Editor
             }
 
             string sourcePath = AssetDatabase.GetAssetPath(source);
-            if (string.IsNullOrEmpty(sourcePath))
-            {
-                EditorUtility.DisplayDialog("Create Next Level", "Save the Level Definition asset first.", "OK");
-                return;
-            }
-
-            if (!AssetDatabase.IsValidFolder(LevelFolder))
-                Directory.CreateDirectory(LevelFolder);
-
+            bool sourceWasLast = IsLastEntry(manifest, source);
             int nextNumber = manifest.LevelCount + 1;
             string newPath = AssetDatabase.GenerateUniqueAssetPath(LevelFolder + "/Level" + nextNumber.ToString("00") + ".asset");
             if (!AssetDatabase.CopyAsset(sourcePath, newPath))
@@ -129,24 +117,16 @@ namespace PillFrenzy.Editor
                 return;
             }
 
-            AssetDatabase.ImportAsset(newPath);
             LevelDefinitionSO created = AssetDatabase.LoadAssetAtPath<LevelDefinitionSO>(newPath);
-            if (created == null)
-            {
-                EditorUtility.DisplayDialog("Create Next Level", "Copied asset failed to load.", "OK");
-                return;
-            }
-
             string newGuid = AssetDatabase.AssetPathToGUID(newPath);
             AppendToManifest(manifest, newGuid);
             LevelAuthoring.EnsureAddressable(newGuid, AddressableKeys.DefLevel(nextNumber - 1));
 
-            if (IsLastEntry(manifest, source) && source.ReturnToMenu)
+            if (sourceWasLast && source.ReturnToMenu)
             {
-                SerializedObject sourceSo = new SerializedObject(source);
-                sourceSo.FindProperty("m_ReturnToMenu").boolValue = false;
-                sourceSo.ApplyModifiedPropertiesWithoutUndo();
-                EditorUtility.SetDirty(source);
+                SerializedObject serializedSource = new SerializedObject(source);
+                serializedSource.FindProperty("m_ReturnToMenu").boolValue = false;
+                serializedSource.ApplyModifiedPropertiesWithoutUndo();
             }
 
             AssetDatabase.SaveAssets();
@@ -156,41 +136,17 @@ namespace PillFrenzy.Editor
 
         private static bool IsLastEntry(LevelManifestSO manifest, LevelDefinitionSO definition)
         {
-            if (manifest == null || definition == null || manifest.LevelCount < 1)
-                return false;
-
-            string definitionPath = AssetDatabase.GetAssetPath(definition);
-            string definitionGuid = AssetDatabase.AssetPathToGUID(definitionPath);
-            SerializedObject so = new SerializedObject(manifest);
-            SerializedProperty levels = so.FindProperty("m_Levels");
-            if (levels == null || levels.arraySize < 1)
-                return false;
-
-            SerializedProperty last = levels.GetArrayElementAtIndex(levels.arraySize - 1);
-            SerializedProperty guidProp = last.FindPropertyRelative("m_AssetGUID");
-            return guidProp != null && guidProp.stringValue == definitionGuid;
+            List<LevelDefinitionSO> levels = LevelAuthoring.LoadLevels(manifest);
+            return levels.Count > 0 && levels[levels.Count - 1] == definition;
         }
 
         private static void AppendToManifest(LevelManifestSO manifest, string assetGuid)
         {
-            SerializedObject so = new SerializedObject(manifest);
-            SerializedProperty levels = so.FindProperty("m_Levels");
+            SerializedObject serializedManifest = new SerializedObject(manifest);
+            SerializedProperty levels = serializedManifest.FindProperty("m_Levels");
             levels.arraySize++;
-            SerializedProperty element = levels.GetArrayElementAtIndex(levels.arraySize - 1);
-            SerializedProperty guidProp = element.FindPropertyRelative("m_AssetGUID");
-            if (guidProp != null)
-                guidProp.stringValue = assetGuid;
-
-            SerializedProperty subName = element.FindPropertyRelative("m_SubObjectName");
-            if (subName != null)
-                subName.stringValue = string.Empty;
-
-            SerializedProperty subType = element.FindPropertyRelative("m_SubObjectType");
-            if (subType != null)
-                subType.stringValue = string.Empty;
-
-            so.ApplyModifiedPropertiesWithoutUndo();
-            EditorUtility.SetDirty(manifest);
+            levels.GetArrayElementAtIndex(levels.arraySize - 1).FindPropertyRelative("m_AssetGUID").stringValue = assetGuid;
+            serializedManifest.ApplyModifiedPropertiesWithoutUndo();
         }
     }
 }

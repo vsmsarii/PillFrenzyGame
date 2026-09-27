@@ -25,12 +25,6 @@ namespace PillFrenzy.Gameplay
 
         public bool TryGet(ESpecialPowerId id, out SpecialPowerCatalogEntry entry)
         {
-            if (m_Entries == null)
-            {
-                entry = default;
-                return false;
-            }
-
             for (int i = 0; i < m_Entries.Length; i++)
             {
                 SpecialPowerDefinitionSO definition = m_Entries[i].Definition;
@@ -42,23 +36,6 @@ namespace PillFrenzy.Gameplay
             }
 
             entry = default;
-            return false;
-        }
-
-        public bool HasAnyUnlocked(int currentLevelNumber)
-        {
-            if (m_Entries == null)
-                return false;
-
-            for (int i = 0; i < m_Entries.Length; i++)
-            {
-                if (m_Entries[i].Definition == null)
-                    continue;
-
-                if (currentLevelNumber >= m_Entries[i].UnlockLevel)
-                    return true;
-            }
-
             return false;
         }
     }

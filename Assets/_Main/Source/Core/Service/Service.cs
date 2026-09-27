@@ -2,24 +2,24 @@ namespace PillFrenzy.Core
 {
     public abstract class Service : IService
     {
-        public bool IsInitialized { get; private set; }
+        private bool m_Initialized;
 
         public void Initialize()
         {
-            if (IsInitialized)
+            if (m_Initialized)
                 return;
 
-            IsInitialized = true;
+            m_Initialized = true;
             OnInitialize();
         }
 
         public void Dispose()
         {
-            if (!IsInitialized)
+            if (!m_Initialized)
                 return;
 
             OnDispose();
-            IsInitialized = false;
+            m_Initialized = false;
         }
 
         protected virtual void OnInitialize(){}

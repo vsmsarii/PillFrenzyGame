@@ -1,6 +1,7 @@
 using System.Threading;
 using Cysharp.Threading.Tasks;
 using PillFrenzy.Core;
+using UnityEngine;
 
 namespace PillFrenzy.UI
 {
@@ -8,30 +9,49 @@ namespace PillFrenzy.UI
     {
         public const int LoadingLayer = 2;
 
-        public static async UniTask OpenAsync(
+        public static async UniTask<GameObject> OpenAsync(
             EUIPanel panel,
             int layer = 0,
             bool additive = false,
             bool locked = false,
             CancellationToken cancellationToken = default)
         {
-            UniTaskCompletionSource source = new UniTaskCompletionSource();
+            UniTaskCompletionSource<GameObject> source = new UniTaskCompletionSource<GameObject>();
+
+            void Unsubscribe()
+            {
+                EB.Presentation.Remove<UIPanelOpened>(OnOpened);
+                EB.Presentation.Remove<UIPanelOpenFailed>(OnFailed);
+            }
 
             void OnOpened(UIPanelOpened opened)
             {
                 if (opened.Panel != panel)
                     return;
 
-                EB.Presentation.Remove<UIPanelOpened>(OnOpened);
-                source.TrySetResult();
+                Unsubscribe();
+                source.TrySetResult(opened.Instance);
+            }
+
+            void OnFailed(UIPanelOpenFailed failed)
+            {
+                if (failed.Panel != panel)
+                    return;
+
+                Unsubscribe();
+                source.TrySetResult(null);
             }
 
             EB.Presentation.Add<UIPanelOpened>(OnOpened);
+            EB.Presentation.Add<UIPanelOpenFailed>(OnFailed);
             EB.Presentation.Invoke(new OpenUIPanelEvent(panel, layer, additive, locked));
 
-            bool canceled = await source.Task.AttachExternalCancellation(cancellationToken).SuppressCancellationThrow();
-            if (canceled)
-                EB.Presentation.Remove<UIPanelOpened>(OnOpened);
+            (bool canceled, GameObject instance) = await source.Task.AttachExternalCancellation(cancellationToken).SuppressCancellationThrow();
+            if (!canceled)
+                return instance;
+
+            Unsubscribe();
+            return null;
         }
 
         public static void Close(EUIPanel panel)

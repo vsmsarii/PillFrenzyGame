@@ -4,13 +4,10 @@ namespace PillFrenzy.Core
 {
     public sealed class AnalyticsSystem : Service, IAnalyticsSystem
     {
-        private readonly List<IAnalytics> m_Providers = new List<IAnalytics>();
+        private readonly List<IAnalytics> m_Providers = new();
 
         public void Register(IAnalytics analytics)
         {
-            if (analytics == null || m_Providers.Contains(analytics))
-                return;
-
             m_Providers.Add(analytics);
         }
 
@@ -20,6 +17,10 @@ namespace PillFrenzy.Core
             EB.Analytics.Add<MatchWinAnalytics>(OnMatchWin);
             EB.Analytics.Add<MatchLoseAnalytics>(OnMatchLose);
             EB.Analytics.Add<SpecialPowerUseAnalytics>(OnSpecialPowerUse);
+            EB.Analytics.Add<TutorialStartAnalytics>(OnTutorialStart);
+            EB.Analytics.Add<TutorialPageAnalytics>(OnTutorialPage);
+            EB.Analytics.Add<TutorialEndAnalytics>(OnTutorialEnd);
+            EB.Analytics.Add<AdShowAnalytics>(OnAdShow);
         }
 
         protected override void OnDispose()
@@ -28,6 +29,10 @@ namespace PillFrenzy.Core
             EB.Analytics.Remove<MatchWinAnalytics>(OnMatchWin);
             EB.Analytics.Remove<MatchLoseAnalytics>(OnMatchLose);
             EB.Analytics.Remove<SpecialPowerUseAnalytics>(OnSpecialPowerUse);
+            EB.Analytics.Remove<TutorialStartAnalytics>(OnTutorialStart);
+            EB.Analytics.Remove<TutorialPageAnalytics>(OnTutorialPage);
+            EB.Analytics.Remove<TutorialEndAnalytics>(OnTutorialEnd);
+            EB.Analytics.Remove<AdShowAnalytics>(OnAdShow);
             m_Providers.Clear();
         }
 
@@ -53,6 +58,30 @@ namespace PillFrenzy.Core
         {
             for (int i = 0; i < m_Providers.Count; i++)
                 m_Providers[i].SpecialPowerUse(evt.LevelIndex, evt.PowerId, evt.UsedSeconds);
+        }
+
+        private void OnTutorialStart(TutorialStartAnalytics evt)
+        {
+            for (int i = 0; i < m_Providers.Count; i++)
+                m_Providers[i].TutorialStart(evt.TutorialId, evt.LevelIndex, evt.PageCount);
+        }
+
+        private void OnTutorialPage(TutorialPageAnalytics evt)
+        {
+            for (int i = 0; i < m_Providers.Count; i++)
+                m_Providers[i].TutorialPage(evt.TutorialId, evt.LevelIndex, evt.PageIndex);
+        }
+
+        private void OnTutorialEnd(TutorialEndAnalytics evt)
+        {
+            for (int i = 0; i < m_Providers.Count; i++)
+                m_Providers[i].TutorialEnd(evt.TutorialId, evt.LevelIndex, evt.PagesViewed, evt.Skipped, evt.Seconds);
+        }
+
+        private void OnAdShow(AdShowAnalytics evt)
+        {
+            for (int i = 0; i < m_Providers.Count; i++)
+                m_Providers[i].AdShow(evt.LevelIndex, evt.Type, evt.Result);
         }
     }
 }

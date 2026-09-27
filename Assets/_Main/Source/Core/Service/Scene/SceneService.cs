@@ -8,6 +8,7 @@ namespace PillFrenzy.Core
     public sealed class SceneService : Service, ISceneService
     {
         private const float SceneProgressWeight = 0.7f;
+        private const float UnityLoadCompleteProgress = 0.9f;
 
         private readonly ISceneLoadingUi m_Loading;
 
@@ -16,58 +17,19 @@ namespace PillFrenzy.Core
             m_Loading = loading;
         }
 
-        public UniTask Load(ESceneName scene, CancellationToken cancellationToken = default)
-        {
-            if (!TryGetSceneName(scene, out string sceneName))
-                return UniTask.CompletedTask;
-
-            return LoadInternal(sceneName, cancellationToken);
-        }
-
-        public UniTask Reload(ESceneName scene, CancellationToken cancellationToken = default)
-        {
-            return Load(scene, cancellationToken);
-        }
-
-        private async UniTask LoadInternal(string sceneName, CancellationToken cancellationToken)
+        public async UniTask Load(ESceneName scene, CancellationToken cancellationToken = default)
         {
             await m_Loading.ShowAsync(cancellationToken);
 
-            AsyncOperation operation = SceneManager.LoadSceneAsync(sceneName, LoadSceneMode.Single);
-            if (operation == null)
-            {
-                Logger.Error("Scene is not in build settings: " + sceneName);
-                return;
-            }
-
+            AsyncOperation operation = SceneManager.LoadSceneAsync(scene.ToString(), LoadSceneMode.Single);
             while (!operation.isDone)
             {
-                float sceneProgress = Mathf.Clamp01(operation.progress / 0.9f);
+                float sceneProgress = Mathf.Clamp01(operation.progress / UnityLoadCompleteProgress);
                 m_Loading.SetProgress(sceneProgress * SceneProgressWeight);
                 await UniTask.Yield(cancellationToken);
             }
 
             m_Loading.SetProgress(SceneProgressWeight);
-        }
-
-        private static bool TryGetSceneName(ESceneName scene, out string sceneName)
-        {
-            switch (scene)
-            {
-                case ESceneName.Init:
-                    sceneName = "Init";
-                    return true;
-                case ESceneName.Menu:
-                    sceneName = "Menu";
-                    return true;
-                case ESceneName.Gameplay:
-                    sceneName = "Gameplay";
-                    return true;
-                default:
-                    sceneName = null;
-                    Logger.Error("Unmapped scene requested: " + scene);
-                    return false;
-            }
         }
     }
 }

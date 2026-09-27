@@ -17,6 +17,6 @@ MonoBehaviour:
   m_TargetFrameRate: 60
   m_HudTopInset: 0.1
   m_BoxRowTopInset: 0.3
-  m_BoxRowViewportY: 0.14
+  m_BoxRowViewportY: 0.2
   m_BoxRowSideMargin: 0.4
   m_BoxRowMinDepth: 8

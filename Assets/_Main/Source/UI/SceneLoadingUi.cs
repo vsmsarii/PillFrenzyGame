@@ -15,10 +15,5 @@ namespace PillFrenzy.UI
         {
             UIPanels.SetLoadingProgress(progress);
         }
-
-        public void Hide()
-        {
-            UIPanels.HideLoading();
-        }
     }
 }

@@ -76,9 +76,8 @@ namespace PillFrenzy.Editor
                     return;
                 }
 
-                GameObject layout = definition.Layout != null ? definition.Layout.editorAsset : null;
-                int boxes = definition.TargetQueue != null ? definition.TargetQueue.Length : 0;
-                EditorGUILayout.LabelField((layout != null ? layout.name : "Default layout") + ", " + boxes + " boxes");
+                GameObject layout = definition.Layout.editorAsset;
+                EditorGUILayout.LabelField((layout != null ? layout.name : "Default layout") + ", " + definition.TargetQueue.Length + " boxes");
 
                 if (GUILayout.Button("Definition", GUILayout.Width(80f)))
                     Selection.activeObject = definition;

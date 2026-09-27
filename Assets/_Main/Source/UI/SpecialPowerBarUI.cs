@@ -11,16 +11,15 @@ namespace PillFrenzy.UI
         [SerializeField] private SpecialPowerButtonView m_ButtonPrefab;
 
         private SpecialPowerSystem m_System;
-        private ISaveService m_Save;
         private SpecialPowerButtonView[] m_Buttons;
+        private ESpecialPowerId[] m_ButtonIds;
 
-        private void OnEnable()
+        private void Awake()
         {
             EB.Presentation.Add<SpecialPowerHudChanged>(OnHudChanged);
-            Refresh();
         }
 
-        private void OnDisable()
+        private void OnDestroy()
         {
             EB.Presentation.Remove<SpecialPowerHudChanged>(OnHudChanged);
         }
@@ -28,13 +27,12 @@ namespace PillFrenzy.UI
         private void Update()
         {
             if (m_System != null && m_System.IsAnyActive)
-                Refresh();
+                RefreshTimers();
         }
 
-        public void Bind(SpecialPowerSystem system, ISaveService save)
+        public void Bind(SpecialPowerSystem system)
         {
             m_System = system;
-            m_Save = save;
             Build();
             Refresh();
         }
@@ -44,12 +42,9 @@ namespace PillFrenzy.UI
             for (int i = m_ButtonRoot.childCount - 1; i >= 0; i--)
                 Destroy(m_ButtonRoot.GetChild(i).gameObject);
 
-            m_Buttons = null;
-            if (m_System.Catalog == null || m_System.Catalog.Entries == null)
-                return;
-
             SpecialPowerCatalogEntry[] entries = m_System.Catalog.Entries;
             m_Buttons = new SpecialPowerButtonView[entries.Length];
+            m_ButtonIds = new ESpecialPowerId[entries.Length];
             for (int i = 0; i < entries.Length; i++)
             {
                 SpecialPowerDefinitionSO definition = entries[i].Definition;
@@ -58,15 +53,10 @@ namespace PillFrenzy.UI
 
                 SpecialPowerButtonView button = Instantiate(m_ButtonPrefab, m_ButtonRoot);
                 ESpecialPowerId id = definition.Id;
-                button.Bind(definition, () => OnPowerClicked(id));
+                button.Bind(definition, () => m_System.TryActivate(id));
                 m_Buttons[i] = button;
+                m_ButtonIds[i] = id;
             }
-        }
-
-        private void OnPowerClicked(ESpecialPowerId id)
-        {
-            m_System.TryActivate(id);
-            Refresh();
         }
 
         private void OnHudChanged(SpecialPowerHudChanged _)
@@ -76,24 +66,34 @@ namespace PillFrenzy.UI
 
         private void Refresh()
         {
-            bool visible = m_System != null
-                && m_System.Catalog != null && m_System.Catalog.HasAnyUnlocked(m_Save.CurrentLevelNumber);
+            bool visible = m_System != null && m_System.HasAnyRevealed;
             m_Root.gameObject.SetActive(visible);
             if (!visible || m_Buttons == null)
                 return;
 
-            SpecialPowerCatalogEntry[] entries = m_System.Catalog.Entries;
             for (int i = 0; i < m_Buttons.Length; i++)
             {
                 SpecialPowerButtonView button = m_Buttons[i];
                 if (button == null)
                     continue;
 
-                ESpecialPowerId id = entries[i].Definition.Id;
-                bool unlocked = m_System.IsUnlocked(id);
-                button.gameObject.SetActive(unlocked);
-                if (unlocked)
-                    button.SetState(m_System.GetCharges(id), m_System.IsActive(id), m_System.GetActiveRemaining(id));
+                ESpecialPowerId id = m_ButtonIds[i];
+                bool revealed = m_System.IsRevealed(id);
+                button.gameObject.SetActive(revealed);
+                if (!revealed)
+                    continue;
+
+                button.SetState(m_System.GetCharges(id), m_System.IsActive(id));
+                button.SetTimer(m_System.GetActiveRemaining(id));
+            }
+        }
+
+        private void RefreshTimers()
+        {
+            for (int i = 0; i < m_Buttons.Length; i++)
+            {
+                if (m_Buttons[i] != null)
+                    m_Buttons[i].SetTimer(m_System.GetActiveRemaining(m_ButtonIds[i]));
             }
         }
     }

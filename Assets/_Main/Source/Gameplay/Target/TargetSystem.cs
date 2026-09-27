@@ -21,7 +21,7 @@ namespace PillFrenzy.Gameplay
 
         private TargetCatalogSO Catalog => m_Factory.Catalog;
 
-        public bool IsComplete => m_Queue != null && m_NextIndex >= m_Queue.Length && m_Visible.Count == 0 && !m_Filling;
+        public bool IsComplete => m_NextIndex >= m_Queue.Length && m_Visible.Count == 0 && !m_Filling;
 
         public TargetSystem(TargetFactory factory)
         {
@@ -31,14 +31,8 @@ namespace PillFrenzy.Gameplay
         public async UniTask Bind(LevelDefinitionSO definition, LevelLayout layout, CancellationToken cancellationToken)
         {
             m_Origin = layout.TargetSpawnPoint;
-            if (m_Origin == null)
-            {
-                Logger.Error("Level prefab is missing target spawn point.");
-                return;
-            }
-
             m_Queue = definition.TargetQueue;
-            if (m_Queue == null || m_Queue.Length == 0)
+            if (m_Queue.Length == 0)
             {
                 Logger.Error("LevelDefinition has an empty target queue.");
                 return;
@@ -85,7 +79,6 @@ namespace PillFrenzy.Gameplay
             for (int i = 0; i < m_Visible.Count; i++)
                 m_Visible[i].MoveTo(SlotPosition(i), Catalog.ShiftDuration);
 
-
             PublishFill();
             FillAsync().Forget();
         }
@@ -105,8 +98,6 @@ namespace PillFrenzy.Gameplay
                 m_Factory.Release(m_Visible[i]);
 
             m_Visible.Clear();
-            m_Queue = null;
-            m_Fills = null;
         }
 
         public void PublishFill()
@@ -120,7 +111,7 @@ namespace PillFrenzy.Gameplay
                 m_Fills[i] = new TargetFill(target.CapsuleColor, target.Occupied, target.Capacity);
             }
 
-            int remaining = m_Queue != null ? m_Queue.Length - m_NextIndex : 0;
+            int remaining = m_Queue.Length - m_NextIndex;
             EB.Presentation.Invoke(new RunTargetFillChanged(m_Fills, remaining));
         }
 
@@ -148,7 +139,7 @@ namespace PillFrenzy.Gameplay
         {
             TargetQuota quota = m_Queue[m_NextIndex];
             TargetController target = await m_Factory.Create(quota.Capacity, m_Origin, m_Token);
-            if (m_Token.IsCancellationRequested || m_Queue == null)
+            if (m_Token.IsCancellationRequested)
             {
                 if (target != null)
                     m_Factory.Release(target);

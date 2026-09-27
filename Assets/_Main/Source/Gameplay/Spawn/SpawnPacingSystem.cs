@@ -16,10 +16,11 @@ namespace PillFrenzy.Gameplay
         private readonly float[] m_Timers;
         private readonly bool[] m_InFlight;
 
-        private LevelDefinitionSO m_Definition;
-        private float m_SpeedMultiplier = 1f;
+        private readonly Dictionary<int, ECapsuleKind> m_ForcedKinds = new();
 
-        private bool HasRunEnded => m_Level.Phase == ELevelPhase.Complete || m_Level.Phase == ELevelPhase.Fail;
+        private LevelDefinitionSO m_Definition;
+        private int m_SpawnCount;
+        private float m_SpeedMultiplier = 1f;
 
         public SpawnPacingSystem(
             SpawnSystem spawn,
@@ -44,24 +45,32 @@ namespace PillFrenzy.Gameplay
         {
             EB.Gameplay.Remove<RunStarted>(OnRunStarted);
             EB.Gameplay.Remove<RunFinished>(OnRunFinished);
-            m_SpeedMultiplier = 1f;
-            m_Definition = null;
+        }
+
+        public void ForceKind(ForcedCapsuleSpawn spawn)
+        {
+            if (!m_ForcedKinds.TryAdd(spawn.SpawnIndex, spawn.Kind) && m_ForcedKinds[spawn.SpawnIndex] != spawn.Kind)
+                Logger.Warning("Spawn index " + spawn.SpawnIndex + " is already forced to " + m_ForcedKinds[spawn.SpawnIndex] + ". Ignoring " + spawn.Kind + ".");
         }
 
         public void SetSpeedMultiplier(float multiplier)
         {
-            m_SpeedMultiplier = multiplier <= 0f ? 1f : multiplier;
-            if (m_Level.Phase == ELevelPhase.Playing)
-                m_Capsules.SetPathSpeed(CurrentSpeed);
+            m_SpeedMultiplier = multiplier;
+        }
+
+        public void ClearSpeedMultiplier()
+        {
+            SetSpeedMultiplier(1f);
         }
 
         public void Tick(float deltaTime)
         {
-            if (m_Level.Phase != ELevelPhase.Playing || m_Definition == null)
+            if (!m_Level.IsSimulating)
                 return;
 
-            m_Capsules.SetPathSpeed(CurrentSpeed);
-            float interval = CurrentSpawnInterval;
+            float baseSpeed = CurrentBaseSpeed;
+            m_Capsules.SetPathSpeed(baseSpeed * m_SpeedMultiplier);
+            float interval = SpawnIntervalAt(baseSpeed);
 
             for (int i = 0; i < m_Paths.Count; i++)
             {
@@ -80,6 +89,7 @@ namespace PillFrenzy.Gameplay
         private void OnRunStarted(RunStarted evt)
         {
             m_Definition = evt.Definition;
+            m_SpawnCount = 0;
             m_SpeedMultiplier = 1f;
 
             float interval = m_Definition.SpawnInterval;
@@ -99,9 +109,9 @@ namespace PillFrenzy.Gameplay
                 return;
 
             m_InFlight[pathIndex] = true;
-            CapsuleSpawnData data = new CapsuleSpawnData(definition, color, CurrentSpeed);
+            CapsuleSpawnData data = new CapsuleSpawnData(definition, color);
             await m_Spawn.Spawn(data, path, m_DestroyToken).SuppressCancellationThrow();
-            if (!m_DestroyToken.IsCancellationRequested && HasRunEnded)
+            if (!m_DestroyToken.IsCancellationRequested && m_Level.HasEnded)
                 m_Spawn.DespawnAll();
 
             m_InFlight[pathIndex] = false;
@@ -109,59 +119,58 @@ namespace PillFrenzy.Gameplay
 
         private bool TryPickCapsule(LevelPath path, out CapsuleDefinitionSO definition, out CapsuleColorSO color)
         {
-            float poisonChance = m_Definition.PoisonDefinition != null ? m_Definition.PoisonChance : 0f;
-            float goldChance = m_Definition.GoldDefinition != null ? m_Definition.GoldChance : 0f;
-            float roll = Random.value;
-
-            definition = roll < poisonChance ? m_Definition.PoisonDefinition
-                : roll < poisonChance + goldChance ? m_Definition.GoldDefinition
-                : m_Definition.NormalDefinition;
-
-            if (definition == null)
-            {
-                color = null;
-                Logger.Error("LevelDefinition has no normal capsule definition.");
-                return false;
-            }
-
+            definition = PickDefinition(m_SpawnCount);
             if (definition.Kind != ECapsuleKind.Normal)
             {
                 color = definition.Color;
+                m_SpawnCount++;
                 return true;
             }
 
             if (path.TryPickColor(out color))
+            {
+                m_SpawnCount++;
                 return true;
+            }
 
             Logger.Error("Path has no color weights: " + path.name, path);
             return false;
         }
 
-        private float CurrentBaseSpeed
+        private CapsuleDefinitionSO PickDefinition(int spawnIndex)
         {
-            get
+            if (m_ForcedKinds.TryGetValue(spawnIndex, out ECapsuleKind forcedKind))
             {
-                float start = m_Definition.ConveyorSpeed;
-                float max = m_Definition.MaxConveyorSpeed;
-                return Mathf.Min(max, start + m_Level.Elapsed * m_Definition.SpeedRamp);
+                CapsuleDefinitionSO forced = m_Definition.GetDefinition(forcedKind);
+                if (forced != null)
+                    return forced;
+
+                Logger.Warning("Forced spawn " + spawnIndex + " wants " + forcedKind + " but the level has no definition for it.");
             }
+
+            float poisonChance = m_Definition.PoisonDefinition != null ? m_Definition.PoisonChance : 0f;
+            float goldChance = m_Definition.GoldDefinition != null ? m_Definition.GoldChance : 0f;
+            float roll = Random.value;
+
+            return roll < poisonChance ? m_Definition.PoisonDefinition
+                : roll < poisonChance + goldChance ? m_Definition.GoldDefinition
+                : m_Definition.NormalDefinition;
         }
 
-        private float CurrentSpeed => CurrentBaseSpeed * m_SpeedMultiplier;
+        private float CurrentBaseSpeed => Mathf.Min(
+            m_Definition.MaxConveyorSpeed,
+            m_Definition.ConveyorSpeed + m_Level.Elapsed * m_Definition.SpeedRamp);
 
-        private float CurrentSpawnInterval
+        private float SpawnIntervalAt(float baseSpeed)
         {
-            get
-            {
-                float startInterval = m_Definition.SpawnInterval;
-                float startSpeed = m_Definition.ConveyorSpeed;
-                float speedRange = m_Definition.MaxConveyorSpeed - startSpeed;
-                if (speedRange <= 0f)
-                    return startInterval;
+            float startInterval = m_Definition.SpawnInterval;
+            float startSpeed = m_Definition.ConveyorSpeed;
+            float speedRange = m_Definition.MaxConveyorSpeed - startSpeed;
+            if (speedRange <= 0f)
+                return startInterval;
 
-                float progress = Mathf.Clamp01((CurrentBaseSpeed - startSpeed) / speedRange);
-                return Mathf.Lerp(startInterval, m_Definition.MinSpawnInterval, progress);
-            }
+            float progress = Mathf.Clamp01((baseSpeed - startSpeed) / speedRange);
+            return Mathf.Lerp(startInterval, m_Definition.MinSpawnInterval, progress);
         }
     }
 }

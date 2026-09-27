@@ -12,13 +12,14 @@ namespace PillFrenzy.UI
         private const int LayerSortingBase = 100;
         private const int LayerSortingStride = 100;
 
+        [SerializeField] private Transform[] m_Layers;
+
+        private readonly Dictionary<EUIPanel, PanelHandle> m_ActivePanels = new();
+        private readonly List<PanelHandle> m_DisabledPanels = new();
+        private readonly HashSet<EUIPanel> m_Opening = new();
         private IAssetProvider m_AssetProvider;
         private UIPanelCatalogSO m_Catalog;
         private bool m_IsInitialized;
-        private readonly Dictionary<EUIPanel, PanelHandle> m_ActivePanels = new();
-        private readonly List<PanelHandle> m_DisabledPanels = new();
-        [SerializeField] private Transform[] m_Layers;
-        private readonly HashSet<EUIPanel> m_Opening = new();
 
         public void Initialize(IAssetProvider assetProvider, UIPanelCatalogSO catalog)
         {
@@ -74,7 +75,10 @@ namespace PillFrenzy.UI
         private async UniTaskVoid OpenPanelAsync(OpenUIPanelEvent payload)
         {
             if (payload.Panel == EUIPanel.None || m_Catalog == null)
+            {
+                PublishOpenFailed(payload.Panel);
                 return;
+            }
 
             if (m_ActivePanels.TryGetValue(payload.Panel, out PanelHandle active))
             {
@@ -89,7 +93,11 @@ namespace PillFrenzy.UI
                 return;
 
             if (!m_Catalog.TryGetPrefab(payload.Panel, out AssetReferenceGameObject prefab))
+            {
+                Logger.Warning("UI panel has no prefab in catalog: " + payload.Panel);
+                PublishOpenFailed(payload.Panel);
                 return;
+            }
 
             m_Opening.Add(payload.Panel);
             await OpenPanelCore(payload, prefab);
@@ -100,14 +108,20 @@ namespace PillFrenzy.UI
         {
             GameObject prefabAsset = await m_AssetProvider.LoadAsset<GameObject>(prefab.RuntimeKey.ToString());
             if (prefabAsset == null || !m_IsInitialized)
+            {
+                PublishOpenFailed(payload.Panel);
                 return;
+            }
 
             if (!payload.Additive)
                 CloseNonLockedActivePanelsExcept(payload.Panel, payload.Layer);
 
-            Transform layerRoot = GetOrCreateLayer(payload.Layer);
+            Transform layerRoot = GetLayer(payload.Layer);
             if (layerRoot == null)
+            {
+                PublishOpenFailed(payload.Panel);
                 return;
+            }
 
             DestroyOldestPanelIfFull();
 
@@ -155,7 +169,7 @@ namespace PillFrenzy.UI
 
         private void ApplyLayer(PanelHandle handle)
         {
-            Transform layer = GetOrCreateLayer(handle.Layer);
+            Transform layer = GetLayer(handle.Layer);
             handle.Instance.transform.SetParent(layer, false);
             handle.Instance.transform.SetAsLastSibling();
 
@@ -167,7 +181,7 @@ namespace PillFrenzy.UI
             canvas.sortingOrder = LayerSortingBase + handle.Layer * LayerSortingStride + handle.Instance.transform.GetSiblingIndex();
         }
 
-        private Transform GetOrCreateLayer(int layer)
+        private Transform GetLayer(int layer)
         {
             if (layer < 0 || layer >= m_Layers.Length)
                 return null;
@@ -267,6 +281,11 @@ namespace PillFrenzy.UI
         private static void PublishOpened(PanelHandle handle)
         {
             EB.Presentation.Invoke(new UIPanelOpened(handle.Panel, handle.Layer, handle.Instance));
+        }
+
+        private static void PublishOpenFailed(EUIPanel panel)
+        {
+            EB.Presentation.Invoke(new UIPanelOpenFailed(panel));
         }
 
         private sealed class PanelHandle

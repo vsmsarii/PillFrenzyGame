@@ -11,7 +11,7 @@ namespace PillFrenzy.Core
         private const string SoundMuteKey = "pillfrenzy.audio.sound.mute";
 
         private readonly IAssetProvider m_Assets;
-        private readonly Dictionary<EAudioName, AudioClip> m_Clips = new Dictionary<EAudioName, AudioClip>();
+        private readonly Dictionary<EAudioName, AudioClip> m_Clips = new();
         private GameObject m_Root;
         private AudioSource m_SfxSource;
         private AudioSource m_MusicSource;
@@ -31,40 +31,23 @@ namespace PillFrenzy.Core
         {
             AudioCatalogSO catalog = await m_Assets.LoadAsset<AudioCatalogSO>(AddressableKeys.AudioCatalog, cancellationToken);
             m_Clips.Clear();
-            if (catalog == null || catalog.Entries == null)
-                return;
-
-            for (int i = 0; i < catalog.Entries.Length; i++)
+            foreach (AudioCatalogEntry entry in catalog.Entries)
             {
-                AudioCatalogEntry entry = catalog.Entries[i];
-                if (entry.Name == EAudioName.None || entry.Clip == null)
-                    continue;
-
-                m_Clips[entry.Name] = entry.Clip;
+                if (entry.Clip != null)
+                    m_Clips[entry.Name] = entry.Clip;
             }
         }
 
         public void Play(EAudioName name)
         {
-            if (m_SoundMuted || m_SfxSource == null || name == EAudioName.None)
-                return;
-
-            if (!m_Clips.TryGetValue(name, out AudioClip clip))
-                return;
-
-            m_SfxSource.PlayOneShot(clip);
+            if (!m_SoundMuted && m_Clips.TryGetValue(name, out AudioClip clip))
+                m_SfxSource.PlayOneShot(clip);
         }
 
         public void PlayMusic(EAudioName name)
         {
-            if (m_MusicSource == null || name == EAudioName.None)
-                return;
-
             if (m_CurrentMusic == name && m_MusicSource.isPlaying)
-            {
-                m_MusicSource.mute = m_MusicMuted;
                 return;
-            }
 
             if (!m_Clips.TryGetValue(name, out AudioClip clip))
             {
@@ -80,9 +63,6 @@ namespace PillFrenzy.Core
         public void StopMusic()
         {
             m_CurrentMusic = EAudioName.None;
-            if (m_MusicSource == null)
-                return;
-
             m_MusicSource.Stop();
             m_MusicSource.clip = null;
         }
@@ -92,8 +72,7 @@ namespace PillFrenzy.Core
             m_MusicMuted = muted;
             PlayerPrefs.SetInt(MusicMuteKey, muted ? 1 : 0);
             PlayerPrefs.Save();
-            if (m_MusicSource != null)
-                m_MusicSource.mute = muted;
+            m_MusicSource.mute = muted;
         }
 
         public void SetSoundMuted(bool muted)
@@ -101,8 +80,7 @@ namespace PillFrenzy.Core
             m_SoundMuted = muted;
             PlayerPrefs.SetInt(SoundMuteKey, muted ? 1 : 0);
             PlayerPrefs.Save();
-            if (m_SfxSource != null)
-                m_SfxSource.mute = muted;
+            m_SfxSource.mute = muted;
         }
 
         protected override void OnInitialize()
@@ -122,17 +100,28 @@ namespace PillFrenzy.Core
             m_MusicSource.spatialBlend = 0f;
             m_MusicSource.loop = true;
             m_MusicSource.mute = m_MusicMuted;
+
+            EB.Presentation.Add<AdStarted>(OnAdStarted);
+            EB.Presentation.Add<AdFinished>(OnAdFinished);
         }
 
         protected override void OnDispose()
         {
+            EB.Presentation.Remove<AdStarted>(OnAdStarted);
+            EB.Presentation.Remove<AdFinished>(OnAdFinished);
+            AudioListener.pause = false;
             m_Clips.Clear();
-            if (m_Root != null)
-                Object.Destroy(m_Root);
+            Object.Destroy(m_Root);
+        }
 
-            m_Root = null;
-            m_SfxSource = null;
-            m_MusicSource = null;
+        private void OnAdStarted(AdStarted evt)
+        {
+            AudioListener.pause = true;
+        }
+
+        private void OnAdFinished(AdFinished evt)
+        {
+            AudioListener.pause = false;
         }
     }
 }

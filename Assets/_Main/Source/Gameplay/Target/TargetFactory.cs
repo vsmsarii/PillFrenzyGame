@@ -32,9 +32,6 @@ namespace PillFrenzy.Gameplay
 
         public void Release(TargetController controller)
         {
-            if (controller == null)
-                return;
-
             controller.KillTweens();
             m_Pool.Release(controller.gameObject);
         }

@@ -53,9 +53,9 @@ namespace PillFrenzy.Gameplay
         [SerializeField, Min(0f)] private float m_FramingPadding = 0.75f;
 
         public float SpawnInterval => m_SpawnInterval;
-        public float MinSpawnInterval => Mathf.Min(m_SpawnInterval, m_MinSpawnInterval);
+        public float MinSpawnInterval => m_MinSpawnInterval;
         public float ConveyorSpeed => m_ConveyorSpeed;
-        public float MaxConveyorSpeed => Mathf.Max(m_ConveyorSpeed, m_MaxConveyorSpeed);
+        public float MaxConveyorSpeed => m_MaxConveyorSpeed;
         public float SpeedRamp => m_SpeedRamp;
         public int MaxActive => m_MaxActive;
         public CapsuleDefinitionSO NormalDefinition => m_NormalDefinition;
@@ -73,14 +73,24 @@ namespace PillFrenzy.Gameplay
         public float FieldOfView => m_FieldOfView;
         public float FramingPadding => m_FramingPadding;
 
+        public CapsuleDefinitionSO GetDefinition(ECapsuleKind kind)
+        {
+            switch (kind)
+            {
+                case ECapsuleKind.Gold:
+                    return m_GoldDefinition;
+                case ECapsuleKind.Poison:
+                    return m_PoisonDefinition;
+                default:
+                    return m_NormalDefinition;
+            }
+        }
+
         public bool TryGetLayoutKey(out string key)
         {
-            key = null;
-            if (m_Layout == null || !m_Layout.RuntimeKeyIsValid())
-                return false;
-
-            key = m_Layout.RuntimeKey.ToString();
-            return true;
+            bool hasLayout = m_Layout.RuntimeKeyIsValid();
+            key = hasLayout ? m_Layout.RuntimeKey.ToString() : null;
+            return hasLayout;
         }
 
         private void OnValidate()

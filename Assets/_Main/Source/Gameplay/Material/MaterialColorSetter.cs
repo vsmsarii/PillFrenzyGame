@@ -11,6 +11,8 @@ namespace PillFrenzy.Gameplay
 
         private MaterialPropertyBlock m_PropertyBlock;
         private bool m_HasExternalColors;
+        private int m_PropertyId;
+        private int m_MaterialCount = -1;
 
         private void Awake()
         {
@@ -20,32 +22,19 @@ namespace PillFrenzy.Gameplay
 
         private void OnValidate()
         {
+            m_MaterialCount = -1;
             if (!Application.isPlaying)
                 ApplyColors();
         }
 
-        public void SetColors(Color[] colors)
-        {
-            m_Colors = colors;
-            m_HasExternalColors = colors != null && colors.Length > 0;
-            ApplyColors();
-        }
-
         public void SetColorIndex(Color color, int index)
         {
-            if (index < 0)
-                return;
-
-            if (m_Colors == null || m_Colors.Length <= index)
+            if (m_Colors.Length <= index)
             {
-                Color[] colors = new Color[index + 1];
-                for (int i = 0; i < colors.Length; i++)
-                    colors[i] = Color.white;
-
-                if (m_Colors != null)
-                    Array.Copy(m_Colors, colors, m_Colors.Length);
-
-                m_Colors = colors;
+                int previousLength = m_Colors.Length;
+                Array.Resize(ref m_Colors, index + 1);
+                for (int i = previousLength; i < m_Colors.Length; i++)
+                    m_Colors[i] = Color.white;
             }
 
             m_Colors[index] = color;
@@ -55,23 +44,32 @@ namespace PillFrenzy.Gameplay
 
         private void ApplyColors()
         {
-            if (m_Renderer == null)
-                m_Renderer = GetComponent<Renderer>();
+            if (m_MaterialCount < 0)
+                CacheRendererInfo();
 
             if (m_Colors == null || m_Colors.Length == 0 || m_Renderer == null)
                 return;
 
             m_PropertyBlock ??= new MaterialPropertyBlock();
 
-            int count = Mathf.Min(m_Colors.Length, m_Renderer.sharedMaterials.Length);
+            int count = Mathf.Min(m_Colors.Length, m_MaterialCount);
             for (int index = 0; index < count; index++)
             {
                 m_PropertyBlock.Clear();
-                m_PropertyBlock.SetColor(m_MaterialPropertyName, m_Colors[index]);
+                m_PropertyBlock.SetColor(m_PropertyId, m_Colors[index]);
                 m_Renderer.SetPropertyBlock(m_PropertyBlock, index);
             }
 
             m_PropertyBlock.Clear();
+        }
+
+        private void CacheRendererInfo()
+        {
+            if (m_Renderer == null)
+                m_Renderer = GetComponent<Renderer>();
+
+            m_PropertyId = Shader.PropertyToID(m_MaterialPropertyName);
+            m_MaterialCount = m_Renderer != null ? m_Renderer.sharedMaterials.Length : 0;
         }
     }
 }

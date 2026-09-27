@@ -9,9 +9,6 @@ namespace PillFrenzy.Core
 
         public void Add<T>(Action<T> listener)
         {
-            if (listener == null)
-                return;
-
             Type key = typeof(T);
             if (m_EventTable.TryGetValue(key, out Delegate existing))
                 m_EventTable[key] = (Action<T>)existing + listener;
@@ -21,9 +18,6 @@ namespace PillFrenzy.Core
 
         public void Remove<T>(Action<T> listener)
         {
-            if (listener == null)
-                return;
-
             Type key = typeof(T);
             if (!m_EventTable.TryGetValue(key, out Delegate current))
                 return;
@@ -37,27 +31,8 @@ namespace PillFrenzy.Core
 
         public void Invoke<T>(T evt)
         {
-            if (!m_EventTable.TryGetValue(typeof(T), out Delegate listeners))
-                return;
-
-            Action<T> action = (Action<T>)listeners;
-
-#if UNITY_EDITOR || DEVELOPMENT_BUILD
-            Delegate[] invocationList = action.GetInvocationList();
-            for (int i = 0; i < invocationList.Length; i++)
-            {
-                try
-                {
-                    ((Action<T>)invocationList[i]).Invoke(evt);
-                }
-                catch (Exception exception)
-                {
-                    Logger.Error("Event listener failed for " + typeof(T).Name + ": " + exception);
-                }
-            }
-#else
-            action.Invoke(evt);
-#endif
+            if (m_EventTable.TryGetValue(typeof(T), out Delegate listeners))
+                ((Action<T>)listeners).Invoke(evt);
         }
 
         public void Clear()

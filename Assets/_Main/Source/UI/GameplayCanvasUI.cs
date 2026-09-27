@@ -23,7 +23,7 @@ namespace PillFrenzy.UI
 
         private ISaveService m_Save;
         private Action m_Settings;
-        private long m_LastRefreshSecond = -1;
+        private float m_NextClockRefreshTime;
 
         private void Awake()
         {
@@ -47,11 +47,10 @@ namespace PillFrenzy.UI
             if (m_Save == null)
                 return;
 
-            long now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
-            if (now == m_LastRefreshSecond)
+            if (Time.unscaledTime < m_NextClockRefreshTime)
                 return;
 
-            m_LastRefreshSecond = now;
+            m_NextClockRefreshTime = Time.unscaledTime + 1f;
             UiText.ShowImmortal(m_Immortal, m_Save.ImmortalRemainingSeconds);
         }
 
@@ -63,26 +62,25 @@ namespace PillFrenzy.UI
         public void BindPowers(SpecialPowerSystem powers, ISaveService save)
         {
             m_Save = save;
-            m_PowerBar.Bind(powers, save);
+            m_PowerBar.Bind(powers);
             UiText.ShowImmortal(m_Immortal, m_Save.ImmortalRemainingSeconds);
         }
 
         public void BindSettings(Action settings)
         {
             m_Settings = settings;
-            m_SettingsButton.gameObject.SetActive(settings != null);
         }
 
         private void OnSettingsClicked()
         {
-            m_Settings?.Invoke();
+            m_Settings.Invoke();
         }
 
         private void OnHudChanged(RunHudChanged evt)
         {
-            m_Score.text = "Score " + evt.Score;
-            m_Combo.text = "Combo x" + evt.Combo;
-            m_Health.text = "HP " + evt.Health;
+            UiText.SetValue(m_Score, "Score ", evt.Score);
+            UiText.SetValue(m_Combo, "Combo x", evt.Combo);
+            UiText.SetValue(m_Health, "HP ", evt.Health);
         }
 
         private void OnFillChanged(RunTargetFillChanged evt)
@@ -94,13 +92,13 @@ namespace PillFrenzy.UI
                 if (i > 0)
                     m_FillBuilder.Append("   ");
 
-                m_FillBuilder.Append(fill.Color.name).Append(' ').Append(fill.Occupied).Append('/').Append(fill.Capacity);
+                m_FillBuilder.Append(fill.Color.DisplayName).Append(' ').Append(fill.Occupied).Append('/').Append(fill.Capacity);
             }
 
             if (evt.Remaining > 0)
                 m_FillBuilder.Append("   +").Append(evt.Remaining);
 
-            m_Fill.text = m_FillBuilder.ToString();
+            m_Fill.SetText(m_FillBuilder);
         }
     }
 }

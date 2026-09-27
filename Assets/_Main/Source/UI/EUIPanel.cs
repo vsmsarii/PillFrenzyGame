@@ -10,5 +10,7 @@ namespace PillFrenzy.UI
         Loading,
         Shop,
         Settings,
+        Tutorial,
+        TutorialOverlay,
     }
 }

@@ -24,18 +24,14 @@ namespace PillFrenzy.Gameplay
         private readonly PathMeshBuilder m_Builder = new();
         private SplineContainer m_Container;
         private Mesh m_Mesh;
-        private bool m_Dirty;
 
         private void OnEnable()
         {
             m_Container = GetComponent<SplineContainer>();
-            Spline.Changed += OnSplineChanged;
             Rebuild();
-        }
-
-        private void OnDisable()
-        {
-            Spline.Changed -= OnSplineChanged;
+#if UNITY_EDITOR
+            Spline.Changed += OnSplineChanged;
+#endif
         }
 
         private void OnDestroy()
@@ -49,20 +45,8 @@ namespace PillFrenzy.Gameplay
                 DestroyImmediate(m_Mesh);
         }
 
-        private void OnValidate()
-        {
-            MarkDirty();
-        }
-
-        private void Update()
-        {
-            if (m_Dirty)
-                Rebuild();
-        }
-
         public void Rebuild()
         {
-            m_Dirty = false;
             if (m_Container == null || m_Container.Spline == null)
                 return;
 
@@ -85,6 +69,28 @@ namespace PillFrenzy.Gameplay
             }, m_Mesh);
         }
 
+#if UNITY_EDITOR
+        private bool m_Dirty;
+
+        private void OnDisable()
+        {
+            Spline.Changed -= OnSplineChanged;
+        }
+
+        private void OnValidate()
+        {
+            MarkDirty();
+        }
+
+        private void Update()
+        {
+            if (!m_Dirty)
+                return;
+
+            m_Dirty = false;
+            Rebuild();
+        }
+
         private void OnSplineChanged(Spline spline, int knotIndex, SplineModification modification)
         {
             if (m_Container != null && spline == m_Container.Spline)
@@ -94,10 +100,9 @@ namespace PillFrenzy.Gameplay
         private void MarkDirty()
         {
             m_Dirty = true;
-#if UNITY_EDITOR
             if (!Application.isPlaying)
                 UnityEditor.EditorApplication.QueuePlayerLoopUpdate();
-#endif
         }
+#endif
     }
 }

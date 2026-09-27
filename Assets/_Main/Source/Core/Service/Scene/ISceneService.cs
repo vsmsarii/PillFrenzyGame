@@ -6,6 +6,5 @@ namespace PillFrenzy.Core
     public interface ISceneService : IService
     {
         UniTask Load(ESceneName scene, CancellationToken cancellationToken = default);
-        UniTask Reload(ESceneName scene, CancellationToken cancellationToken = default);
     }
 }

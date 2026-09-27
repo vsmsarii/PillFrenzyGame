@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Threading;
 using Cysharp.Threading.Tasks;
@@ -20,7 +21,7 @@ namespace PillFrenzy.Gameplay
         private TargetView m_View;
         private CapsuleController[] m_Seated;
         private bool[] m_Reserved;
-        private Transform m_ResolvedExit;
+        private Transform m_Exit;
         private Tween m_ExitTween;
         private Tween m_MoveTween;
         private bool m_Filled;
@@ -28,41 +29,20 @@ namespace PillFrenzy.Gameplay
         public CapsuleColorSO CapsuleColor => m_Color;
         public int Capacity => m_Capacity;
         public float SeatOffset => m_SeatOffset;
-        public int Occupied
-        {
-            get
-            {
-                if (m_Filled)
-                    return m_Capacity;
-
-                if (m_Seated == null || m_Reserved == null)
-                    return 0;
-
-                int count = 0;
-                for (int i = 0; i < m_Capacity; i++)
-                {
-                    if (m_Seated[i] != null || m_Reserved[i])
-                        count++;
-                }
-
-                return count;
-            }
-        }
+        public int Occupied => m_Filled ? m_Capacity : CountReserved();
         public bool IsFilled => m_Filled;
-        public bool CanAccept => !m_Filled && HasFreeSlot();
+        public bool CanAccept => !m_Filled && Array.IndexOf(m_Reserved, false) >= 0;
 
         public void Initialize(CapsuleColorSO color, int capacity, Transform fallbackExit)
         {
             KillTweens();
 
             m_Color = color;
+            m_Capacity = capacity;
             m_Filled = false;
-            m_ResolvedExit = m_ExitPoint != null ? m_ExitPoint : fallbackExit;
-            if (m_ResolvedExit == null)
-                Logger.Error("Target has no exit point.", this);
-            m_Capacity = ResolveCapacity(capacity);
-            m_Seated = new CapsuleController[m_Capacity];
-            m_Reserved = new bool[m_Capacity];
+            m_Exit = m_ExitPoint != null ? m_ExitPoint : fallbackExit;
+            m_Seated = new CapsuleController[capacity];
+            m_Reserved = new bool[capacity];
 
             m_View = GetComponent<TargetView>();
             m_View.Initialize(m_Color.Color);
@@ -70,170 +50,85 @@ namespace PillFrenzy.Gameplay
 
         public bool TryReserveSlot(out Transform slot, out int index)
         {
-            slot = null;
-            index = -1;
-            if (!CanAccept || m_Slots == null)
-                return false;
-
-            for (int i = 0; i < m_Capacity; i++)
+            index = m_Filled ? -1 : Array.IndexOf(m_Reserved, false);
+            if (index < 0)
             {
-                if (m_Slots[i] == null || m_Reserved[i] || m_Seated[i] != null)
-                    continue;
-
-                m_Reserved[i] = true;
-                slot = m_Slots[i];
-                index = i;
-                return true;
+                slot = null;
+                return false;
             }
 
-            return false;
+            m_Reserved[index] = true;
+            slot = m_Slots[index];
+            return true;
         }
 
         public void CancelReserve(int index)
         {
-            if (m_Reserved == null || index < 0 || index >= m_Reserved.Length)
-                return;
-
-            if (m_Seated[index] == null)
-                m_Reserved[index] = false;
+            m_Reserved[index] = false;
         }
 
         public void Seat(CapsuleController capsule, int index)
         {
-            if (capsule == null || m_Slots == null || index < 0 || index >= m_Capacity)
-                return;
-
-            Transform slot = m_Slots[index];
-            if (slot == null)
-                return;
-
-            m_Reserved[index] = true;
             m_Seated[index] = capsule;
-            capsule.AttachToSlot(slot, m_SeatOffset);
-            if (m_View != null)
-                m_View.PlayLanded();
-
-            if (!HasEmptySeat())
-                m_Filled = true;
+            capsule.AttachToSlot(m_Slots[index], m_SeatOffset);
+            m_View.PlayLanded();
+            m_Filled = Array.IndexOf(m_Seated, null) < 0;
         }
 
         public async UniTask PlayExit(CancellationToken cancellationToken)
         {
             KillTweens();
-            if (m_ResolvedExit == null)
-                return;
-
-            Vector3 destination = m_ResolvedExit.position;
-
-            UniTaskCompletionSource source = new UniTaskCompletionSource();
-            bool completed = false;
             m_ExitTween = transform
-                .DOMove(destination, m_ExitDuration)
+                .DOMove(m_Exit.position, m_ExitDuration)
                 .SetEase(Ease.InOutQuad)
-                .SetLink(gameObject)
                 .SetDelay(m_ExitDelay)
-                .OnComplete(() =>
-                {
-                    completed = true;
-                    source.TrySetResult();
-                })
-                .OnKill(() =>
-                {
-                    m_ExitTween = null;
-                    if (!completed)
-                        source.TrySetCanceled();
-                });
+                .SetLink(gameObject);
 
-            using (cancellationToken.CanBeCanceled
-                       ? cancellationToken.Register(KillExit)
-                       : default(CancellationTokenRegistration))
-            {
-                await source.Task.SuppressCancellationThrow();
-            }
+            await m_ExitTween.WaitForEnd(cancellationToken);
         }
 
         public void CollectSeated(List<CapsuleController> buffer)
         {
-            if (m_Seated == null)
-                return;
-
             for (int i = 0; i < m_Seated.Length; i++)
             {
-                CapsuleController seated = m_Seated[i];
-                if (seated == null)
+                if (m_Seated[i] == null)
                     continue;
 
-                buffer.Add(seated);
+                buffer.Add(m_Seated[i]);
                 m_Seated[i] = null;
             }
         }
 
         public void MoveTo(Vector3 localPosition, float duration)
         {
-            if (m_MoveTween != null && m_MoveTween.IsActive())
-                m_MoveTween.Kill();
-
+            Kill(ref m_MoveTween);
             m_MoveTween = transform.DOLocalMove(localPosition, duration).SetEase(Ease.OutCubic).SetLink(gameObject);
         }
 
         public void KillTweens()
         {
-            KillExit();
-            if (m_MoveTween != null && m_MoveTween.IsActive())
-                m_MoveTween.Kill();
-
-            m_MoveTween = null;
+            Kill(ref m_ExitTween);
+            Kill(ref m_MoveTween);
         }
 
-        private void KillExit()
+        private int CountReserved()
         {
-            if (m_ExitTween != null && m_ExitTween.IsActive())
-                m_ExitTween.Kill();
-
-            m_ExitTween = null;
-        }
-
-        private bool HasFreeSlot()
-        {
-            if (m_Slots == null || m_Reserved == null)
-                return false;
-
-            for (int i = 0; i < m_Capacity; i++)
+            int count = 0;
+            foreach (bool reserved in m_Reserved)
             {
-                if (m_Slots[i] != null && !m_Reserved[i] && m_Seated[i] == null)
-                    return true;
+                if (reserved)
+                    count++;
             }
 
-            return false;
+            return count;
         }
 
-        private bool HasEmptySeat()
+        private static void Kill(ref Tween tween)
         {
-            if (m_Seated == null)
-                return true;
+            if (tween != null && tween.IsActive())
+                tween.Kill();
 
-            for (int i = 0; i < m_Capacity; i++)
-            {
-                if (m_Slots[i] == null)
-                    continue;
-
-                if (m_Seated[i] == null)
-                    return true;
-            }
-
-            return false;
-        }
-
-        private int ResolveCapacity(int capacity)
-        {
-            int available = m_Slots != null ? m_Slots.Length : 0;
-            if (capacity <= 0 || capacity > available)
-            {
-                Logger.Error("Target capacity does not match prefab slot count.");
-                return available;
-            }
-
-            return capacity;
+            tween = null;
         }
     }
 }

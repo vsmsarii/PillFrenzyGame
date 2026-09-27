@@ -7,6 +7,8 @@ namespace PillFrenzy.Gameplay
     {
         [SerializeField] private MaterialColorSetter m_ColorSetter;
 
+        private Tween m_LandedPunch;
+
         public void Initialize(Color color)
         {
             m_ColorSetter.SetColorIndex(color, 1);
@@ -14,7 +16,10 @@ namespace PillFrenzy.Gameplay
 
         public void PlayLanded()
         {
-            transform.DOPunchScale(Vector3.one * 0.08f, 0.18f, 6, 0.6f).SetLink(gameObject);
+            if (m_LandedPunch != null && m_LandedPunch.IsActive())
+                m_LandedPunch.Complete();
+
+            m_LandedPunch = transform.DOPunchScale(Vector3.one * 0.08f, 0.18f, 6, 0.6f).SetLink(gameObject);
         }
     }
 }

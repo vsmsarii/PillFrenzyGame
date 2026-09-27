@@ -7,19 +7,22 @@ namespace PillFrenzy.Gameplay
 {
     public sealed class CapsuleController : MonoBehaviour
     {
+        [SerializeField] private float m_HeightOffset = 1.5f;
+
         private CapsuleDefinitionSO m_Definition;
         private CapsuleColorSO m_Color;
         private CapsuleView m_View;
         private IConveyorPath m_Path;
-        private float m_Speed;
+        private Collider m_Collider;
         private float m_Distance;
+        private readonly Vector3[] m_FlightPath = new Vector3[3];
         private ECapsuleState m_State;
         private Tween m_FlyTween;
-        [SerializeField] private float m_HeightOffset = 1.5f;
 
         public CapsuleDefinitionSO Definition => m_Definition;
         public CapsuleColorSO Color => m_Color;
         public ECapsuleState State => m_State;
+        public float Distance => m_Distance;
         public bool HasReachedEnd =>
             m_State == ECapsuleState.OnPath
             && m_Path != null
@@ -32,7 +35,6 @@ namespace PillFrenzy.Gameplay
             m_Definition = data.Definition;
             m_Color = data.Color;
             m_Path = path;
-            m_Speed = data.Speed;
             m_Distance = 0f;
             m_State = ECapsuleState.OnPath;
             SetColliderEnabled(true);
@@ -44,18 +46,13 @@ namespace PillFrenzy.Gameplay
             m_View.Initialize(m_Color.Color);
         }
 
-        public void Tick(float deltaTime)
+        public void Advance(float distance)
         {
-            if (m_State != ECapsuleState.OnPath || m_Path == null)
+            if (m_State != ECapsuleState.OnPath)
                 return;
 
-            m_Distance += m_Speed * deltaTime;
+            m_Distance += distance;
             ApplyPathPose();
-        }
-
-        public void SetPathSpeed(float speed)
-        {
-            m_Speed = speed;
         }
 
         public void BeginFlight()
@@ -72,39 +69,21 @@ namespace PillFrenzy.Gameplay
             SetColliderEnabled(false);
         }
 
-        public async UniTask FlyTo(Vector3 destination, Quaternion rotation, CancellationToken cancellationToken)
+        public UniTask FlyTo(Vector3 destination, Quaternion rotation, CancellationToken cancellationToken)
         {
             KillFlight();
-            float duration = m_Definition != null ? m_Definition.FlyDuration : 0.35f;
-            UniTaskCompletionSource source = new UniTaskCompletionSource();
-            bool completed = false;
-
-            Vector3 startPoint = transform.position;
-            Vector3 midPoint = (startPoint + destination) / 2f + Vector3.up * m_HeightOffset;
-            Vector3[] path = { startPoint, midPoint, destination };
+            float duration = m_Definition.FlyDuration;
+            Vector3 start = transform.position;
+            m_FlightPath[0] = start;
+            m_FlightPath[1] = (start + destination) / 2f + Vector3.up * m_HeightOffset;
+            m_FlightPath[2] = destination;
 
             m_FlyTween = DOTween.Sequence()
-            .Join(transform.DOPath(path, duration, PathType.CatmullRom).SetEase(Ease.OutQuad))
-            .Join(transform.DORotateQuaternion(rotation, duration).SetEase(Ease.OutQuad))
-            .SetLink(gameObject)
-            .OnComplete(() =>
-            {
-                completed = true;
-                source.TrySetResult();
-            })
-            .OnKill(() =>
-            {
-                m_FlyTween = null;
-                if (!completed)
-                    source.TrySetCanceled();
-            });
+                .Join(transform.DOPath(m_FlightPath, duration, PathType.CatmullRom).SetEase(Ease.OutQuad))
+                .Join(transform.DORotateQuaternion(rotation, duration).SetEase(Ease.OutQuad))
+                .SetLink(gameObject);
 
-            using (cancellationToken.CanBeCanceled
-                       ? cancellationToken.Register(KillFlight)
-                       : default(CancellationTokenRegistration))
-            {
-                await source.Task.SuppressCancellationThrow();
-            }
+            return m_FlyTween.WaitForEnd(cancellationToken);
         }
 
         public void KillFlight()
@@ -123,9 +102,10 @@ namespace PillFrenzy.Gameplay
 
         private void SetColliderEnabled(bool enabled)
         {
-            Collider collider = GetComponent<Collider>();
-            if (collider != null)
-                collider.enabled = enabled;
+            if (m_Collider == null)
+                m_Collider = GetComponent<Collider>();
+
+            m_Collider.enabled = enabled;
         }
     }
 }

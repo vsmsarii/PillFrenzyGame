@@ -52,6 +52,16 @@ namespace PillFrenzy.UI
         }
     }
 
+    public readonly struct UIPanelOpenFailed
+    {
+        public readonly EUIPanel Panel;
+
+        public UIPanelOpenFailed(EUIPanel panel)
+        {
+            Panel = panel;
+        }
+    }
+
     public readonly struct LoadingProgressChanged
     {
         public readonly float Progress;

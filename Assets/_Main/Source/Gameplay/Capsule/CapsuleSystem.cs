@@ -10,6 +10,8 @@ namespace PillFrenzy.Gameplay
     public sealed class CapsuleSystem : ITickable
     {
         private const int MaxRaycastHits = 8;
+        private const float MaxTapDistance = 100f;
+        private const float SpecialFlyHeight = 2f;
 
         private readonly IInputService m_Input;
         private readonly TargetSystem m_Targets;
@@ -19,13 +21,16 @@ namespace PillFrenzy.Gameplay
         private readonly List<CapsuleController> m_Capsules = new();
         private readonly List<CapsuleController> m_SeatedBuffer = new();
         private readonly RaycastHit[] m_Hits = new RaycastHit[MaxRaycastHits];
-        private readonly List<RaycastResult> m_UiHits = new List<RaycastResult>(8);
+        private readonly List<RaycastResult> m_UiHits = new();
         private readonly int m_CapsuleLayerMask;
         private PointerEventData m_PointerData;
         private SpawnSystem m_Spawn;
         private ILevelRunState m_Level;
+        private ICapsuleTapInterceptor m_TapInterceptor;
+        private float m_PathSpeed;
 
         public int Count => m_Capsules.Count;
+        public IReadOnlyList<CapsuleController> Active => m_Capsules;
 
         public CapsuleSystem(
             IInputService input,
@@ -49,10 +54,14 @@ namespace PillFrenzy.Gameplay
             m_Level = level;
         }
 
+        public void SetTapInterceptor(ICapsuleTapInterceptor interceptor)
+        {
+            m_TapInterceptor = interceptor;
+        }
+
         public void Register(CapsuleController controller)
         {
-            if (controller != null)
-                m_Capsules.Add(controller);
+            m_Capsules.Add(controller);
         }
 
         public void Unregister(CapsuleController controller)
@@ -63,41 +72,29 @@ namespace PillFrenzy.Gameplay
         public void CopyActive(List<CapsuleController> buffer)
         {
             buffer.Clear();
-            for (int i = 0; i < m_Capsules.Count; i++)
-                buffer.Add(m_Capsules[i]);
+            buffer.AddRange(m_Capsules);
         }
 
         public void Tick(float deltaTime)
         {
-            TryHandleTap();
+            HandleTap();
 
-            if (m_Level.Phase != ELevelPhase.Playing)
+            if (!m_Level.IsSimulating)
                 return;
 
+            float distance = m_PathSpeed * deltaTime;
             for (int i = m_Capsules.Count - 1; i >= 0; i--)
             {
-                CapsuleController controller = m_Capsules[i];
-                if (controller == null)
-                {
-                    m_Capsules.RemoveAt(i);
-                    continue;
-                }
-
-                controller.Tick(deltaTime);
-
-                if (controller.HasReachedEnd)
-                    m_Spawn.Despawn(controller);
+                CapsuleController capsule = m_Capsules[i];
+                capsule.Advance(distance);
+                if (capsule.HasReachedEnd)
+                    m_Spawn.Despawn(capsule);
             }
         }
 
         public void SetPathSpeed(float speed)
         {
-            for (int i = 0; i < m_Capsules.Count; i++)
-            {
-                CapsuleController controller = m_Capsules[i];
-                if (controller != null && controller.State == ECapsuleState.OnPath)
-                    controller.SetPathSpeed(speed);
-            }
+            m_PathSpeed = speed;
         }
 
         public void Shutdown()
@@ -105,43 +102,39 @@ namespace PillFrenzy.Gameplay
             m_Capsules.Clear();
         }
 
-        private void TryHandleTap()
+        private void HandleTap()
         {
-            if (!m_Input.TryConsumeTap(out Vector2 screenPosition))
-                return;
-
-            if (IsPointerOverUi(screenPosition))
-                return;
-
-            if (m_Level.Phase != ELevelPhase.Playing)
+            if (!m_Input.TryConsumeTap(out Vector2 screenPosition) || IsPointerOverUi(screenPosition))
                 return;
 
             CapsuleController capsule = RaycastCapsule(screenPosition);
-            if (capsule == null || capsule.State != ECapsuleState.OnPath || capsule.Definition == null)
+            if (m_TapInterceptor != null && m_TapInterceptor.TryIntercept(capsule))
+                return;
+
+            if (!m_Level.IsSimulating || capsule == null || capsule.State != ECapsuleState.OnPath)
                 return;
 
             ECapsuleKind kind = capsule.Definition.Kind;
             if (kind == ECapsuleKind.Normal)
             {
-                if (!m_Targets.TryGet(capsule.Color, out TargetController target))
-                    return;
-
-                if (!target.TryReserveSlot(out Transform slot, out int slotIndex))
-                    return;
-
-                m_Targets.PublishFill();
-                FlyNormal(capsule, target, slot, slotIndex).Forget();
+                SendToMatchingTarget(capsule);
                 return;
             }
 
-            if (kind == ECapsuleKind.Gold)
-            {
-                FlySpecial(capsule, OffsetSpecialFly(capsule.transform.position), ECapsuleKind.Gold).Forget();
-                return;
-            }
+            Vector3 destination = capsule.transform.position + Vector3.up * SpecialFlyHeight;
+            FlySpecial(capsule, destination, kind).Forget();
+        }
 
-            if (kind == ECapsuleKind.Poison)
-                FlySpecial(capsule, OffsetSpecialFly(capsule.transform.position), ECapsuleKind.Poison).Forget();
+        private void SendToMatchingTarget(CapsuleController capsule)
+        {
+            if (!m_Targets.TryGet(capsule.Color, out TargetController target))
+                return;
+
+            if (!target.TryReserveSlot(out Transform slot, out int slotIndex))
+                return;
+
+            m_Targets.PublishFill();
+            FlyNormal(capsule, target, slot, slotIndex).Forget();
         }
 
         private bool IsPointerOverUi(Vector2 screenPosition)
@@ -161,29 +154,25 @@ namespace PillFrenzy.Gameplay
 
         private CapsuleController RaycastCapsule(Vector2 screenPosition)
         {
-            if (m_Camera == null)
-                return null;
-
             Ray ray = m_Camera.ScreenPointToRay(screenPosition);
-            int hitCount = Physics.RaycastNonAlloc(ray, m_Hits, 100f, m_CapsuleLayerMask);
-            CapsuleController best = null;
-            float bestDistance = float.MaxValue;
+            int hitCount = Physics.RaycastNonAlloc(ray, m_Hits, MaxTapDistance, m_CapsuleLayerMask);
+            CapsuleController closest = null;
+            float closestDistance = float.MaxValue;
 
             for (int i = 0; i < hitCount; i++)
             {
                 RaycastHit hit = m_Hits[i];
-                if (hit.distance >= bestDistance)
+                if (hit.distance >= closestDistance)
                     continue;
 
-                CapsuleController capsule = hit.collider.GetComponentInParent<CapsuleController>();
-                if (capsule == null)
+                if (!hit.transform.TryGetComponent(out CapsuleController capsule))
                     continue;
 
-                best = capsule;
-                bestDistance = hit.distance;
+                closest = capsule;
+                closestDistance = hit.distance;
             }
 
-            return best;
+            return closest;
         }
 
         private async UniTaskVoid FlyNormal(CapsuleController capsule, TargetController target, Transform slot, int slotIndex)
@@ -192,16 +181,9 @@ namespace PillFrenzy.Gameplay
             await capsule.FlyTo(slot.position + Vector3.up * target.SeatOffset, slot.rotation, m_DestroyToken);
             await WaitWhilePaused();
 
-            bool aborted = m_DestroyToken.IsCancellationRequested
-                || m_Level.Phase != ELevelPhase.Playing
-                || capsule == null
-                || target == null;
-
-            if (aborted)
+            if (m_DestroyToken.IsCancellationRequested || m_Level.Phase != ELevelPhase.Playing)
             {
-                if (target != null)
-                    target.CancelReserve(slotIndex);
-
+                target.CancelReserve(slotIndex);
                 m_Targets.PublishFill();
                 return;
             }
@@ -210,7 +192,6 @@ namespace PillFrenzy.Gameplay
             target.Seat(capsule, slotIndex);
             m_Targets.PublishFill();
             m_Feedback.PlayCorrect(slot.position, capsule.Color.Color);
-
             EB.Gameplay.Invoke(new CapsuleResolved(ECapsuleKind.Normal));
 
             if (target.IsFilled)
@@ -223,6 +204,10 @@ namespace PillFrenzy.Gameplay
                 m_Targets.Advance(target);
             }
 
+            await WaitWhilePaused();
+            if (m_DestroyToken.IsCancellationRequested)
+                return;
+
             if (m_Level.Phase == ELevelPhase.Playing && m_Targets.IsComplete)
                 EB.Gameplay.Invoke(new AllTargetsFilled());
         }
@@ -231,8 +216,8 @@ namespace PillFrenzy.Gameplay
         {
             m_SeatedBuffer.Clear();
             target.CollectSeated(m_SeatedBuffer);
-            for (int i = 0; i < m_SeatedBuffer.Count; i++)
-                m_Spawn.Despawn(m_SeatedBuffer[i]);
+            foreach (CapsuleController seated in m_SeatedBuffer)
+                m_Spawn.Despawn(seated);
 
             m_SeatedBuffer.Clear();
         }
@@ -243,7 +228,7 @@ namespace PillFrenzy.Gameplay
             await capsule.FlyTo(destination, capsule.transform.rotation, m_DestroyToken);
             await WaitWhilePaused();
 
-            if (m_DestroyToken.IsCancellationRequested || capsule == null || m_Level.Phase != ELevelPhase.Playing)
+            if (m_DestroyToken.IsCancellationRequested || m_Level.Phase != ELevelPhase.Playing)
                 return;
 
             EB.Gameplay.Invoke(new CapsuleResolved(kind));
@@ -259,17 +244,8 @@ namespace PillFrenzy.Gameplay
 
         private async UniTask WaitWhilePaused()
         {
-            if (m_Level.Phase != ELevelPhase.Paused)
-                return;
-
-            await UniTask.WaitWhile(
-                () => m_Level.Phase == ELevelPhase.Paused,
-                cancellationToken: m_DestroyToken).SuppressCancellationThrow();
-        }
-
-        private Vector3 OffsetSpecialFly(Vector3 sourcePosition)
-        {
-            return sourcePosition + Vector3.up * 2f;
+            if (m_Level.IsPaused)
+                await UniTask.WaitWhile(() => m_Level.IsPaused, cancellationToken: m_DestroyToken).SuppressCancellationThrow();
         }
     }
 }

@@ -51,7 +51,7 @@ namespace PillFrenzy.Gameplay
             for (int i = m_Active.Count - 1; i >= 0; i--)
             {
                 PooledVfx vfx = m_Active[i];
-                if (vfx != null && vfx.Tick(deltaTime))
+                if (vfx.Tick(deltaTime))
                     continue;
 
                 m_Active.RemoveAt(i);
@@ -90,9 +90,6 @@ namespace PillFrenzy.Gameplay
 
         private void Release(PooledVfx vfx)
         {
-            if (vfx == null)
-                return;
-
             vfx.Stop();
             m_Pool.Release(vfx.gameObject);
         }
