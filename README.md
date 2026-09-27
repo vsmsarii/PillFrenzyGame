@@ -606,10 +606,18 @@ kadrajı build'de yalnızca ekran oranı değişince hesaplanır.
 (`sharedMaterials` her okumada yeni dizi döndürür). Kapsül collider'ını ve uçuş path dizisini tekrar
 kullanır. Save'deki aramalar closure üreten `List.Find` yerine düz döngüyle yapılır.
 
-**Bilerek yapılmayanlar.** DOTween recycling kapalı, çünkü kodda tutulan tween referansları başka bir
-tween'e işaret edebilir hâle gelir. Event bus'taki `Dictionary<Type>` araması event başına ihmal
-edilebilir olduğu için değiştirilmedi. HUD'da sık değişen yazıları ayrı bir alt `Canvas`'a almak,
-tüm HUD'un yeniden çizilmesini önlerdi. Bu bir prefab düzenlemesi ve henüz yapılmadı.
+**HUD canvas bölümlemesi.** Bir canvas'taki tek bir yazı değişince o canvas'ın tamamı yeniden
+batch'lenir. HUD bu yüzden güncellenme sıklığına göre bölündü: her dokunuşta birlikte değişen skor,
+kombo, can ve kutu doluluğu `RunStats` alt canvas'ında, saniyede bir değişen ölümsüzlük süresi ve güç
+aktifken her frame değişen güç çubuğu kendi alt canvas'larında. Level adı ve ayarlar butonu kök
+canvas'ta kalır ve hiç yeniden batch'lenmez. Her alt canvas bir ek draw call demek olduğu için her
+yazıya ayrı canvas verilmedi. Güç çubuğu buton içerdiği için kendi `GraphicRaycaster`'ını taşır.
+
+**Bilerek yapılmayanlar.** DOTween recycling kapalı. Dokunuş başına 5-7 tween nesnesi (birkaç KB)
+üretiliyor ve incremental GC açık, yani kazanç küçük. Buna karşılık recycling açıkken kodda tutulan
+eski tween referansları başka bir objenin tween'ine işaret edebilir ve yanlış animasyonun
+öldürülmesi gibi zor bulunan hatalara yol açar. Event bus'taki `Dictionary<Type>` araması event
+başına ihmal edilebilir olduğu için değiştirilmedi.
 
 ---
 
