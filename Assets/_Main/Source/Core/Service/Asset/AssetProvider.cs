@@ -10,7 +10,7 @@ namespace PillFrenzy.Core
 {
     public sealed class AssetProvider : Service, IAssetProvider
     {
-        private readonly Dictionary<string, AsyncOperationHandle> m_AssetHandles = new();
+        private readonly Dictionary<string, LoadedAsset> m_Assets = new();
         private readonly Dictionary<GameObject, AsyncOperationHandle<GameObject>> m_InstanceHandles = new();
 
         public async UniTask InitializeAsync(CancellationToken cancellationToken = default)
@@ -21,8 +21,8 @@ namespace PillFrenzy.Core
 
         public async UniTask<T> LoadAsset<T>(string key, CancellationToken cancellationToken = default) where T : UnityEngine.Object
         {
-            if (m_AssetHandles.TryGetValue(key, out AsyncOperationHandle existing))
-                return existing.Result as T;
+            if (m_Assets.TryGetValue(key, out LoadedAsset loaded))
+                return loaded.Retain() as T;
 
             AsyncOperationHandle<T> handle = default;
             try
@@ -36,7 +36,13 @@ namespace PillFrenzy.Core
                     return null;
                 }
 
-                m_AssetHandles[key] = handle;
+                if (m_Assets.TryGetValue(key, out loaded))
+                {
+                    Addressables.Release(handle);
+                    return loaded.Retain() as T;
+                }
+
+                m_Assets[key] = new LoadedAsset(handle);
                 return asset;
             }
             catch (Exception exception)
@@ -50,11 +56,11 @@ namespace PillFrenzy.Core
 
         public void ReleaseAsset(string key)
         {
-            if (!m_AssetHandles.TryGetValue(key, out AsyncOperationHandle handle))
+            if (!m_Assets.TryGetValue(key, out LoadedAsset loaded) || loaded.ReleaseReference() > 0)
                 return;
 
-            Addressables.Release(handle);
-            m_AssetHandles.Remove(key);
+            Addressables.Release(loaded.Handle);
+            m_Assets.Remove(key);
         }
 
         public async UniTask<GameObject> Instantiate(string key, Transform parent = null, CancellationToken cancellationToken = default)
@@ -90,8 +96,9 @@ namespace PillFrenzy.Core
 
             if (m_InstanceHandles.TryGetValue(instance, out AsyncOperationHandle<GameObject> handle))
             {
-                Addressables.ReleaseInstance(handle);
                 m_InstanceHandles.Remove(instance);
+                if (handle.IsValid())
+                    Addressables.ReleaseInstance(handle);
                 return;
             }
 
@@ -100,15 +107,41 @@ namespace PillFrenzy.Core
 
         protected override void OnDispose()
         {
-            foreach (KeyValuePair<GameObject, AsyncOperationHandle<GameObject>> pair in m_InstanceHandles)
-                Addressables.ReleaseInstance(pair.Value);
+            foreach (AsyncOperationHandle<GameObject> handle in m_InstanceHandles.Values)
+            {
+                if (handle.IsValid())
+                    Addressables.ReleaseInstance(handle);
+            }
 
             m_InstanceHandles.Clear();
 
-            foreach (KeyValuePair<string, AsyncOperationHandle> pair in m_AssetHandles)
-                Addressables.Release(pair.Value);
+            foreach (LoadedAsset loaded in m_Assets.Values)
+                Addressables.Release(loaded.Handle);
 
-            m_AssetHandles.Clear();
+            m_Assets.Clear();
+        }
+
+        private sealed class LoadedAsset
+        {
+            private int m_References = 1;
+
+            public AsyncOperationHandle Handle { get; }
+
+            public LoadedAsset(AsyncOperationHandle handle)
+            {
+                Handle = handle;
+            }
+
+            public object Retain()
+            {
+                m_References++;
+                return Handle.Result;
+            }
+
+            public int ReleaseReference()
+            {
+                return --m_References;
+            }
         }
     }
 }

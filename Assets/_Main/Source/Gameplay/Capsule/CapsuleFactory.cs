@@ -28,6 +28,9 @@ namespace PillFrenzy.Gameplay
 
         public void Release(CapsuleController controller)
         {
+            if (controller == null)
+                return;
+
             controller.KillFlight();
             m_Pool.Release(controller.gameObject);
         }

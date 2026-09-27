@@ -11,6 +11,7 @@ namespace PillFrenzy.Bootstrap
         private const int PopupLayer = 1;
 
         private GameContext m_Context;
+        private IAssetProvider m_Assets;
         private ISaveService m_Save;
         private IAudioService m_Audio;
         private IAPCatalogSO m_IapCatalog;
@@ -25,6 +26,7 @@ namespace PillFrenzy.Bootstrap
             }
 
             m_Context = GameRunner.Instance.Context;
+            m_Assets = m_Context.Services.Get<IAssetProvider>();
             m_Save = m_Context.Services.Get<ISaveService>();
             m_Audio = m_Context.Services.Get<IAudioService>();
             EB.Presentation.Add<UIPanelOpened>(OnPanelOpened);
@@ -38,9 +40,8 @@ namespace PillFrenzy.Bootstrap
 
         private async UniTaskVoid RunAsync()
         {
-            IAssetProvider assets = m_Context.Services.Get<IAssetProvider>();
-            m_IapCatalog = await assets.LoadAsset<IAPCatalogSO>(AddressableKeys.IapCatalog, m_Context.CancellationToken);
-            m_PowerCatalog = await assets.LoadAsset<SpecialPowerCatalogSO>(AddressableKeys.SpecialPowerCatalog, m_Context.CancellationToken);
+            m_IapCatalog = await m_Assets.LoadAsset<IAPCatalogSO>(AddressableKeys.IapCatalog, m_Context.CancellationToken);
+            m_PowerCatalog = await m_Assets.LoadAsset<SpecialPowerCatalogSO>(AddressableKeys.SpecialPowerCatalog, m_Context.CancellationToken);
             SpecialPowerUnlockSync.Sync(m_Save, m_PowerCatalog, m_Save.CurrentLevelNumber);
             m_Audio.PlayMusic(EAudioName.MusicMenu);
 
@@ -97,6 +98,10 @@ namespace PillFrenzy.Bootstrap
         private void OnDestroy()
         {
             EB.Presentation.Remove<UIPanelOpened>(OnPanelOpened);
+            if (m_IapCatalog != null)
+                m_Assets.ReleaseAsset(AddressableKeys.IapCatalog);
+            if (m_PowerCatalog != null)
+                m_Assets.ReleaseAsset(AddressableKeys.SpecialPowerCatalog);
         }
     }
 }

@@ -83,13 +83,20 @@ namespace PillFrenzy.Bootstrap
         private UniTask LoadLevel(int levelIndex)
         {
             m_Context.GameplayLevelIndex = levelIndex;
-            return m_Context.Services.Get<ISceneService>().Load(ESceneName.Gameplay, m_Context.CancellationToken);
+            return LeaveTo(ESceneName.Gameplay);
         }
 
         private UniTask GoToMenu()
         {
             m_Context.GameplayLevelIndex = -1;
-            return m_Context.Services.Get<ISceneService>().Load(ESceneName.Menu, m_Context.CancellationToken);
+            return LeaveTo(ESceneName.Menu);
+        }
+
+        private async UniTask LeaveTo(ESceneName scene)
+        {
+            await UIPanels.ShowLoading(m_Context.CancellationToken);
+            m_Session.Shutdown();
+            await m_Context.Services.Get<ISceneService>().Load(scene, m_Context.CancellationToken);
         }
 
         private void OnDestroy()

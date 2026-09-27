@@ -19,6 +19,7 @@ namespace PillFrenzy.Bootstrap
         private readonly CancellationToken m_Token;
         private readonly UniTaskCompletionSource<RunEnded> m_RunEnd = new();
         private readonly PreRunSequence m_PreRun = new();
+        private readonly List<string> m_LoadedAssetKeys = new();
 
         private GameObject m_LayoutInstance;
         private TargetSystem m_Targets;
@@ -201,6 +202,11 @@ namespace PillFrenzy.Bootstrap
 
             if (m_LayoutInstance != null)
                 m_Assets.ReleaseInstance(m_LayoutInstance);
+
+            foreach (string key in m_LoadedAssetKeys)
+                m_Assets.ReleaseAsset(key);
+
+            m_LoadedAssetKeys.Clear();
         }
 
         private void SetupTutorials(TutorialCatalogSO catalog, int levelIndex, ISaveService save, Camera camera)
@@ -256,9 +262,13 @@ namespace PillFrenzy.Bootstrap
             return Definition.MaxActive + targetCatalog.VisibleCount * largestBox + ExtraCapsuleWarmup;
         }
 
-        private UniTask<T> LoadAsset<T>(string key) where T : UnityEngine.Object
+        private async UniTask<T> LoadAsset<T>(string key) where T : UnityEngine.Object
         {
-            return m_Assets.LoadAsset<T>(key, m_Token);
+            T asset = await m_Assets.LoadAsset<T>(key, m_Token);
+            if (asset != null)
+                m_LoadedAssetKeys.Add(key);
+
+            return asset;
         }
 
         private bool AbortLoad(string reason)

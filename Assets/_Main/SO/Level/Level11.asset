@@ -28,11 +28,15 @@ MonoBehaviour:
   m_PoisonDefinition: {fileID: 11400000, guid: f538707661c54eb29f1a4e9a53f894ac, type: 2}
   m_TargetQueue:
   - m_Color: {fileID: 11400000, guid: f90ab421e58854944b5db7bad643340c, type: 2}
+    m_Capacity: 8
+  - m_Color: {fileID: 11400000, guid: 1738d2ce97a2940bbb256c37925f7c1a, type: 2}
     m_Capacity: 6
+  - m_Color: {fileID: 11400000, guid: f90ab421e58854944b5db7bad643340c, type: 2}
+    m_Capacity: 8
   - m_Color: {fileID: 11400000, guid: 1738d2ce97a2940bbb256c37925f7c1a, type: 2}
     m_Capacity: 6
   m_Layout:
-    m_AssetGUID: 8cf120b8dd384b08ab858cc2828be121
+    m_AssetGUID: b407e50e6cad4779825ef368bcadf669
     m_SubObjectName: 
     m_SubObjectType: 
     m_SubObjectGUID: 

@@ -51,7 +51,7 @@ namespace PillFrenzy.Gameplay
             for (int i = m_Active.Count - 1; i >= 0; i--)
             {
                 PooledVfx vfx = m_Active[i];
-                if (vfx.Tick(deltaTime))
+                if (vfx != null && vfx.Tick(deltaTime))
                     continue;
 
                 m_Active.RemoveAt(i);
@@ -65,6 +65,9 @@ namespace PillFrenzy.Gameplay
                 Release(m_Active[i]);
 
             m_Active.Clear();
+
+            foreach (VfxEntry entry in m_Entries.Values)
+                m_Pool.ReleaseInactive(Key(entry));
         }
 
         private async UniTaskVoid Spawn(VfxEntry entry, Vector3 position, Color tint)
@@ -90,6 +93,9 @@ namespace PillFrenzy.Gameplay
 
         private void Release(PooledVfx vfx)
         {
+            if (vfx == null)
+                return;
+
             vfx.Stop();
             m_Pool.Release(vfx.gameObject);
         }

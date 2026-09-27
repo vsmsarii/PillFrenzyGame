@@ -10,5 +10,6 @@ namespace PillFrenzy.Core
         UniTask<T> Get<T>(string key, Transform parent = null, CancellationToken cancellationToken = default) where T : Component;
         UniTask Warmup(string key, int count, CancellationToken cancellationToken = default);
         void Release(GameObject instance);
+        void ReleaseInactive(string key);
     }
 }

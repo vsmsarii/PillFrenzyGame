@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Threading;
 using Cysharp.Threading.Tasks;
 using PillFrenzy.Core;
@@ -10,6 +11,7 @@ namespace PillFrenzy.Gameplay
     {
         private readonly IGameObjectPool m_Pool;
         private readonly TargetCatalogSO m_Catalog;
+        private readonly HashSet<string> m_UsedPrefabKeys = new();
 
         public TargetFactory(IGameObjectPool pool, TargetCatalogSO catalog)
         {
@@ -27,13 +29,26 @@ namespace PillFrenzy.Gameplay
                 return null;
             }
 
-            return await m_Pool.Get<TargetController>(prefab.RuntimeKey.ToString(), parent, cancellationToken);
+            string prefabKey = prefab.RuntimeKey.ToString();
+            m_UsedPrefabKeys.Add(prefabKey);
+            return await m_Pool.Get<TargetController>(prefabKey, parent, cancellationToken);
         }
 
         public void Release(TargetController controller)
         {
+            if (controller == null)
+                return;
+
             controller.KillTweens();
             m_Pool.Release(controller.gameObject);
+        }
+
+        public void ReleasePooledInstances()
+        {
+            foreach (string prefabKey in m_UsedPrefabKeys)
+                m_Pool.ReleaseInactive(prefabKey);
+
+            m_UsedPrefabKeys.Clear();
         }
     }
 }

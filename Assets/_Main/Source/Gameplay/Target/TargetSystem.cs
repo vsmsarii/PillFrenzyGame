@@ -98,6 +98,7 @@ namespace PillFrenzy.Gameplay
                 m_Factory.Release(m_Visible[i]);
 
             m_Visible.Clear();
+            m_Factory.ReleasePooledInstances();
         }
 
         public void PublishFill()

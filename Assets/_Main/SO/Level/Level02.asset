@@ -15,12 +15,12 @@ MonoBehaviour:
   m_StartingHealth: 3
   m_ScorePerCorrect: 10
   m_ReturnToMenu: 0
-  m_SpawnInterval: 0.5
-  m_MinSpawnInterval: 0.25
-  m_MaxActive: 7
-  m_ConveyorSpeed: 2.8
-  m_MaxConveyorSpeed: 6
-  m_SpeedRamp: 0.18
+  m_SpawnInterval: 1.2
+  m_MinSpawnInterval: 0.475
+  m_MaxActive: 6
+  m_ConveyorSpeed: 2.55
+  m_MaxConveyorSpeed: 5.1
+  m_SpeedRamp: 0.125
   m_NormalDefinition: {fileID: 11400000, guid: 3d1ebbed3015415f953b1db11acdd51f, type: 2}
   m_GoldChance: 0.12
   m_GoldDefinition: {fileID: 11400000, guid: 8ed688fa1bd6444baa367e646f2c210c, type: 2}

@@ -106,9 +106,17 @@ namespace PillFrenzy.UI
 
         private async UniTask OpenPanelCore(OpenUIPanelEvent payload, AssetReferenceGameObject prefab)
         {
-            GameObject prefabAsset = await m_AssetProvider.LoadAsset<GameObject>(prefab.RuntimeKey.ToString());
-            if (prefabAsset == null || !m_IsInitialized)
+            string prefabKey = prefab.RuntimeKey.ToString();
+            GameObject prefabAsset = await m_AssetProvider.LoadAsset<GameObject>(prefabKey);
+            if (prefabAsset == null)
             {
+                PublishOpenFailed(payload.Panel);
+                return;
+            }
+
+            if (!m_IsInitialized)
+            {
+                m_AssetProvider.ReleaseAsset(prefabKey);
                 PublishOpenFailed(payload.Panel);
                 return;
             }
@@ -119,6 +127,7 @@ namespace PillFrenzy.UI
             Transform layerRoot = GetLayer(payload.Layer);
             if (layerRoot == null)
             {
+                m_AssetProvider.ReleaseAsset(prefabKey);
                 PublishOpenFailed(payload.Panel);
                 return;
             }
@@ -129,6 +138,7 @@ namespace PillFrenzy.UI
             PanelHandle handle = new PanelHandle
             {
                 Panel = payload.Panel,
+                PrefabKey = prefabKey,
                 Instance = instance,
                 Locked = payload.Locked,
                 Layer = payload.Layer,
@@ -233,7 +243,7 @@ namespace PillFrenzy.UI
         {
             while (m_DisabledPanels.Count >= MaxDisabledCount)
             {
-                Destroy(m_DisabledPanels[0].Instance);
+                DestroyPanel(m_DisabledPanels[0]);
                 m_DisabledPanels.RemoveAt(0);
             }
         }
@@ -252,7 +262,7 @@ namespace PillFrenzy.UI
                     continue;
 
                 m_ActivePanels.Remove(handle.Panel);
-                Destroy(handle.Instance);
+                DestroyPanel(handle);
             }
 
             for (int index = m_DisabledPanels.Count - 1; index >= 0; index--)
@@ -260,7 +270,7 @@ namespace PillFrenzy.UI
                 if (m_DisabledPanels[index].Layer != layer)
                     continue;
 
-                Destroy(m_DisabledPanels[index].Instance);
+                DestroyPanel(m_DisabledPanels[index]);
                 m_DisabledPanels.RemoveAt(index);
             }
         }
@@ -268,14 +278,20 @@ namespace PillFrenzy.UI
         private void DestroyAllPanels()
         {
             foreach (PanelHandle handle in m_ActivePanels.Values)
-                Destroy(handle.Instance);
+                DestroyPanel(handle);
 
             for (int index = 0; index < m_DisabledPanels.Count; index++)
-                Destroy(m_DisabledPanels[index].Instance);
+                DestroyPanel(m_DisabledPanels[index]);
 
             m_ActivePanels.Clear();
             m_DisabledPanels.Clear();
             m_Opening.Clear();
+        }
+
+        private void DestroyPanel(PanelHandle handle)
+        {
+            Destroy(handle.Instance);
+            m_AssetProvider.ReleaseAsset(handle.PrefabKey);
         }
 
         private static void PublishOpened(PanelHandle handle)
@@ -291,6 +307,7 @@ namespace PillFrenzy.UI
         private sealed class PanelHandle
         {
             public EUIPanel Panel;
+            public string PrefabKey;
             public GameObject Instance;
             public bool Locked;
             public int Layer;

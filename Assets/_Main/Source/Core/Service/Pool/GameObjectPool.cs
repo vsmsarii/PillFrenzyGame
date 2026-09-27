@@ -97,6 +97,22 @@ namespace PillFrenzy.Core
             GetStack(key).Push(instance);
         }
 
+        public void ReleaseInactive(string key)
+        {
+            if (!m_Inactive.TryGetValue(key, out Stack<GameObject> stack))
+                return;
+
+            while (stack.Count > 0)
+            {
+                GameObject instance = stack.Pop();
+                if (instance == null)
+                    continue;
+
+                m_KeyByInstance.Remove(instance);
+                m_Assets.ReleaseInstance(instance);
+            }
+        }
+
         protected override void OnDispose()
         {
             foreach (GameObject instance in m_KeyByInstance.Keys)
